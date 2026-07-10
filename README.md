@@ -1,0 +1,1 @@
+Note that the related repo "BEGI" (https://github.com/Webster-Lab/BEGI) contains original scripts and data for handling data from the 2023-2024 data collection project and for Eve Tipp's MS thesis. This "clean" repo contains an updated analysis and cleaned-up scripts associated with peer-reviewed publication of Eve's thesis. 
