@@ -12,7 +12,7 @@ library(dplyr)
 
 #### Import finalized water level data ####
 #as dataframe
-BEGI_PT_DTW_all = readRDS("data_clean/DTW_compiled/BEGI_PT_DTW_all.rds")
+BEGI_PT_DTW_all = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
 
 #### Trim data frame to match sonde length and add constant ####
 
@@ -22,7 +22,7 @@ BEGI_PT_DTW_trim <- BEGI_PT_DTW_all[BEGI_PT_DTW_all$datetimeMT >= "2023-09-15 00
 BEGI_PT_DTW_trim$DTW_m_con = BEGI_PT_DTW_trim$DTW_m + 1
 
 #### Import temp corrected sonde data ####
-EXOz.or2 = readRDS("data_clean/EXO_compiled/BEGI_EXO.or2.rds")
+EXOz.or2 = readRDS("EXO_compiled/BEGI_EXO.or2.rds")
 
 #### Make gw depth dataframe for each well ####
 #VDOW
@@ -60,7 +60,7 @@ EXOz.or2[["SLOW"]] = full_join(EXOz.tc[["SLOW"]], SLOW_dtw, by=c("datetimeMT","s
 EXOz.or2[["SLOC"]] = full_join(EXOz.tc[["SLOC"]], SLOC_dtw, by=c("datetimeMT","siteID"))
 
 #### save compiled dtw and sonde data ####
-saveRDS(EXOz.or2, "data_clean/EXO_compiled/BEGI_EXOz.dtw.rds")
+saveRDS(EXOz.or2, "EXO_compiled/BEGI_EXOz.dtw.rds")
 
 
 #### plot DO timeseries ####

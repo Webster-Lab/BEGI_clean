@@ -17,13 +17,9 @@ library(patchwork)
 library(scales)
 
 #### Import compiled EXO1 RDS file ####
-EXOz.dtw = readRDS("data_clean/EXO_compiled/BEGI_EXOz.dtw.rds")
+EXOz.dtw = readRDS("EXO_compiled/BEGI_EXOz.dtw.rds")
 
 #### Correct negative DO values ####
-# BEGI_EXO.or2[["VDOW"]]$ODO.mg.L.mn <- BEGI_EXO.or2[["VDOW"]]$ODO.mg.L.mn + 0.36
-# BEGI_EXO.or2[["VDOS"]]$ODO.mg.L.mn <- BEGI_EXO.or2[["VDOS"]]$ODO.mg.L.mn + 0.42
-# BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn <- BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn + 0.32
-# BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn <- BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn + 2.2
 
 EXOz.dtw[["VDOW"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOW"]]$ODO.mg.L.mn + 0.36
 EXOz.dtw[["VDOS"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOS"]]$ODO.mg.L.mn + 0.42
@@ -52,19 +48,19 @@ shade_df <- data.frame(
 
 
 #### Read in .csv files of service dates and times ####
-service.VDOW = read.csv("data_clean/EXO_compiled/service.VDOW.csv", row.names = 1)
+service.VDOW = read.csv("EXO_compiled/service.VDOW.csv", row.names = 1)
 names(service.VDOW) = "datetimeMT"
 service.VDOW$datetimeMT = as.POSIXct(service.VDOW$datetimeMT, tz="US/Mountain")
 
-service.VDOS = read.csv("data_clean/EXO_compiled/service.VDOS.csv", row.names = 1)
+service.VDOS = read.csv("EXO_compiled/service.VDOS.csv", row.names = 1)
 names(service.VDOS) = "datetimeMT"
 service.VDOS$datetimeMT = as.POSIXct(service.VDOS$datetimeMT, tz="US/Mountain")
 
-service.SLOC = read.csv("data_clean/EXO_compiled/service.SLOC.csv", row.names = 1)
+service.SLOC = read.csv("EXO_compiled/service.SLOC.csv", row.names = 1)
 names(service.SLOC) = "datetimeMT"
 service.SLOC$datetimeMT = as.POSIXct(service.SLOC$datetimeMT, tz="US/Mountain")
 
-service.SLOW = read.csv("data_clean/EXO_compiled/service.SLOW.csv", row.names = 1)
+service.SLOW = read.csv("EXO_compiled/service.SLOW.csv", row.names = 1)
 names(service.SLOW) = "datetimeMT"
 service.SLOW$datetimeMT = as.POSIXct(service.SLOW$datetimeMT, tz="US/Mountain")
 
@@ -1128,12 +1124,12 @@ BEGI_events<-list(DO_events,fDOM_events,Eventdate)
 names(BEGI_events)<-c('DO_events','fDOM_events','Eventdate')
 
 #save list
-saveRDS(BEGI_events,"data_clean/EXO_compiled/BEGI_events.rds")
+saveRDS(BEGI_events,"EXO_compiled/BEGI_events.rds")
 
 
 #### Import data to plot all events ####
 #import BEGI events (with tc data)
-BEGI_events = readRDS("data_clean/EXO_compiled/BEGI_events.rds")
+BEGI_events = readRDS("EXO_compiled/BEGI_events.rds")
 
 #import EXOz.tc
 EXOz.dtw = readRDS("EXO_compiled/BEGI_EXOz.dtw.rds")
