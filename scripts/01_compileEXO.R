@@ -1,43 +1,103 @@
 #### read me ####
 
-# the purpose of this script is to compile and plot EXO1 files from the Webster Lab BEGI project,
-# temperature correct fDOM data, and convert it to DOC
+# the purpose of this script is to compile and plot EXO1 files from the Webster Lab BEGI project (data collected 2023-2024), temperature correct fDOM data, and calibrate it to grab samples of DOC
 
-# NOTE: It is STRONGLY recommended that you delete all your local EXO1 files from the last time you downloaded them from google drive, then use the script below to import them anew EACH TIME you run this script. 
-# As some point, I should write this into the script!
-# DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
+# Output used downstream: EXO_compiled/BEGI_EXO.or2.rds 
 
-#### libraries ####
+#### Libraries ####
 library(googledrive)
 library(tidyverse)
 library(broom)
 library(zoo)
 library(stringr)
 library(suncalc)
+library(readxl)
 
+#
+#### Check/make file structure ####
 
-#### load data from google drive ####
+# make sure output folders exist before anything tries to write to them
+dir.create("EXO_compiled", recursive = TRUE, showWarnings = FALSE)
+dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+dir.create("googledrive", recursive = TRUE, showWarnings = FALSE)
 
-# NOTE: It is STRONGLY recommended that you delete all your local EXO1 files from the last time you downloaded them from google drive, then use the script below to import them anew EACH TIME you run this script. 
-# As some point, I should write this into the script!
-# DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
+#### Clear all files from the googledrive folder to start fresh ####
 
-ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1qsjKPD5T4opFas37clgFX8CqV5R1PHxn")
-2
-for (file_id in ls_tibble$id) {
-  try({googledrive::drive_download(as_id(file_id))})
+# NOTE: DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
+
+googledrive_files <- list.files("googledrive", full.names = TRUE, recursive = TRUE)
+if (length(googledrive_files) > 0) {
+  file.remove(googledrive_files)
 }
-# add overwrite = TRUE if for some reason you want to replace files previously downloaded. 
 
+#### Load raw EXO1 data from google drive ####
 
+# ID link
+ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1qsjKPD5T4opFas37clgFX8CqV5R1PHxn")
+2 # authenticate
+# download for googledrive folder
+for (i in seq_len(nrow(ls_tibble))) {
+  try({
+    googledrive::drive_download(
+      as_id(ls_tibble$id[i]),
+      path = file.path("googledrive", ls_tibble$name[i]),
+      overwrite = TRUE
+    )
+  })
+}
 
-#### load and stitch EXO data ####
+#### DRAFT: load raw EXO1 files from HydroShare instead of Google Drive ####
+#
+# Once the raw EXO1 files are archived on HydroShare (https://www.hydroshare.org), this block is meant to replace the googledrive block above, removing the dependency on Drive OAuth access for anyone re-running this pipeline.
+
+# Uses HSClientR (in-development, not on CRAN yet):
+#   remotes::install_github("program--/HSClientR")
+# Docs: https://hsclientr.justinsingh.me/  |  API: https://www.hydroshare.org/hsapi/
+#
+# This is a scaffold, not a working integration yet - it's wrapped in `if (FALSE)`
+# so it doesn't run. To activate it:
+#   1. Deposit the raw EXO1 files as a HydroShare resource and fill in
+#      HS_RESOURCE_ID below with that resource's ID (the string after
+#      /resource/ in its URL).
+#   2. Confirm the exact function signatures against the HSClientR docs -
+#      the package is labeled "experimental" and its file-download API
+#      (hs_files(), download_request()) is less documented than
+#      googledrive's, so treat the calls below as a starting point to verify,
+#      not a guarantee they work as written.
+#   3. Delete (or stop wrapping in `if (FALSE)`) once verified, and remove/retire
+#      the googledrive block above.
+
+if (FALSE) {
+  # install.packages("remotes"); remotes::install_github("program--/HSClientR")
+  library(HSClientR)
+  
+  HS_RESOURCE_ID <- "TODO-fill-in-hydroshare-resource-id"
+  
+  # hs_auth() only needed for private resources / POST-PUT-DELETE calls;
+  # GET calls (listing/downloading from a public resource) may not require it
+  hs_auth(set_headers = TRUE)
+  
+  # list the files contained in the resource
+  hs_resource_files <- hs_files(id = HS_RESOURCE_ID)
+  
+  # download each file into the working directory (mirrors the googledrive
+  # loop above) - confirm the right accessor/argument names against
+  # hs_resource_files's actual structure and hs_files()/download_request()'s
+  # documented arguments before relying on this
+  for (f in hs_resource_files$file_name) {
+    try({
+      download_request(id = HS_RESOURCE_ID, file = f, destfile = f)
+    })
+  }
+}
+
+#### Load and stitch EXO data ####
 
 # import data
 siteIDz = c("VDOW", "VDOS", "SLOW", "SLOC")
 BEGI_EXOz = list()
 for(i in siteIDz){
-  file_list <- list.files(recursive=F, pattern=paste(i, ".csv", sep=""))
+  file_list <- list.files("googledrive", recursive=F, pattern=paste(i, ".csv", sep=""), full.names=TRUE)
   BEGI_EXOz[[i]] = lapply(file_list, read.csv, 
                           stringsAsFactors=FALSE, skip=8,header=T,
                           fileEncoding="utf-8") # this line makes it such that if there are any offending utf-16 encodings, it will show the offending file in the error message. If any utf-16 files are found, be sure to fix them in the Google Drive, not just your locally saved file!!
@@ -59,7 +119,7 @@ for(i in siteIDz){
 
 
 #
-#### format dates ####
+#### Format dates ####
 
 for(i in siteIDz){
   # put date and time in same column
@@ -105,7 +165,7 @@ for(i in siteIDz){
   BEGI_EXO.stz[[i]]$datetimeMT<-as.POSIXct(BEGI_EXO.stz[[i]]$min, "%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 }
 
-#### save and re-add burst-compiled files ####
+#### Save and re-add burst-compiled files ####
 
 saveRDS(BEGI_EXO.stz, "EXO_compiled/BEGI_EXO.stz.rds")
 rm(list = ls())
@@ -113,7 +173,7 @@ BEGI_EXO.stz = readRDS("EXO_compiled/BEGI_EXO.stz.rds")
 
 
 
-#### stitch in water level data ####
+#### Stitch in water level data ####
 
 BEGI_EXO.stza = BEGI_EXO.stz
 rm(BEGI_EXO.stz)
@@ -126,10 +186,6 @@ googledrive::drive_download(as_id(beeper_tibble$id[beeper_tibble$name=="BEGI_bee
 beeper = read.csv("googledrive/BEGI_beeper.csv")
 
 # format date/times
-# beeper$time[is.na(beeper$time)] = "12:00"
-# beeper$datetimeMT = as.POSIXct(
-#   paste(beeper$date, beeper$time, sep=" "), 
-#   "%Y-%m-%d %H:%M", tz="US/Mountain")
 beeper$date = as.Date(beeper$date)
 
 # format siteID to be same as wellID
@@ -147,7 +203,7 @@ saveRDS(BEGI_EXO.stza, "EXO_compiled/BEGI_EXO.stza.rds")
 rm(list = ls())
 BEGI_EXO.stza = readRDS("EXO_compiled/BEGI_EXO.stza.rds")
 
-#### complete timeseries with all possible time stamps ####
+#### Complete timeseries with all possible time stamps ####
 
 # there is  randomly a datapoint from the year 2072 in the VDOS dataset. Removing any years that are way off here:
 BEGI_EXO.stza[["VDOS"]][BEGI_EXO.stza[["VDOS"]]$datetimeMT>as.POSIXct("2025-01-01 01:00:00"),] = NA
@@ -191,14 +247,14 @@ dup.all = rbind(dup, dup.2)
 BEGI_EXO.ts[["SLOW"]] = BEGI_EXO.ts[["SLOW"]][! BEGI_EXO.ts[["SLOW"]]$min %in% dup.2$min,]
 #reran dup check, and dup is gone!
 
-#### save and re-add clean time series data ####
+#### Save and re-add clean time series data ####
 
 saveRDS(BEGI_EXO.ts, "EXO_compiled/BEGI_EXO.ts.rds")
 rm(list = ls())
 BEGI_EXO.ts = readRDS("EXO_compiled/BEGI_EXO.ts.rds")
 
 
-#### temp correction of fdom WITHOUT service times removed ####
+#### Temp correction of fdom WITHOUT service times removed ####
 # get data from googledrive
 tempcal_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1u4yAZIoqYC2d1BSkt8iG5IT3lPUp3ALo")
 2
@@ -218,7 +274,7 @@ tempcal2_sn = read.csv("googledrive/20241204_5009_fdom.csv", skip=7, head=FALSE)
 tempcal2_sn = tempcal2_sn[1:2,]
 
 
-#### data wrangling ####
+#### data wrangling
 
 tempcal1 = tempcal1[ , which(names(tempcal1) %in% c("fDOM.QSU", "fDOM.QSU.1",
                                                     "Temp..C","Temp..C.1"))]
@@ -270,7 +326,7 @@ plot(sonde_3229_tempcal$fDOM_QSU ~ sonde_3229_tempcal$t)
 
 #
 
-#### Define linear relationships and rhos ####
+#### Define linear relationships and rhos
 
 # sonde_3231 #
 plot(sonde_3231_tempcal$fDOM_QSU ~ sonde_3231_tempcal$temp_C)
@@ -334,16 +390,16 @@ title(main="fDOM (QSU)")
 lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn.Tc),
       pch=20,col="blue", xlab="", xaxt = "n", type="l")
 
-#### save RDS of temp-corrected fdom WITHOUT servicing times removed ####
+#### Save RDS of temp-corrected fdom WITHOUT servicing times removed ####
 saveRDS(BEGI_EXO.ts, "EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
 
-#### import DOC data to convert fDOM to DOC ####
-#get DOC data from google drive
-doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1zdzsIXO5LIzbcg2RzfE4mz3dBKvBmrO-")
+#### NEED TO EDIT --- Import DOC data to attempt to calibrate fDOM to DOC and show calibration fail ####
+### CHANGE TO COMPARE TO DOC GRAB SAMPLES THAT WERE COLLECTED DURING SONDE DEPLOYMENTS
 
+#get DOC data from google drive
+doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1292UXqpLoBdB1uFytiBnxg6zFvO6AUMI")
 doc <- googledrive::drive_ls(path = doc_tibble, type = "xlsx")
-2
 
 #import DOC data without values removed (complete DOC data)
 googledrive::drive_download(file = doc$id[doc$name=="NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx"], 
@@ -386,7 +442,7 @@ docSLOW <- data.frame(docdata$Sample,
 docSLOW <- na.omit(docSLOW)
 
 
-#### Partition/clean fDOM data ####
+#### Partition/clean fDOM data
 #add a column to label each chunk as Matrix spike
 
 #VDOW#
@@ -492,7 +548,7 @@ SLOW_mean_fdom <- BEGI_EXO.ts[["SLOW"]] %>%
   deframe()  
 
 
-#### combined doc/fdom df for each well ####
+#### combined doc/fdom df for each well
 #complete DOC data
 #VDOW#
 docVDOW$fdom <- VDOW_mean_fdom[match(docVDOW$docdata.MatrixSpike,names(VDOW_mean_fdom))]
@@ -509,7 +565,7 @@ docSLOW$fdom <- SLOW_mean_fdom[match(docSLOW$docdata.MatrixSpike,names(SLOW_mean
 
 
 
-#### linear regression fdom2doc ####
+#### linear regression fdom2doc
 #VDOW#
 plot(docVDOW$docdata.VDOW, docVDOW$fdom,
      xlab = "NPOC (VDOW)",
@@ -756,816 +812,147 @@ pm.pts = suntimes$sunset[-(nrow(suntimes))]
 am.pts = suntimes$sunrise[-1]
 
 
-#### plot to check - SLOC ####
+#### plot to check ####
+plot_site_diagnostics <- function(data, service_times, file_path,
+                                  ylim_waterlevel = NULL,
+                                  ylim_odo = NULL,
+                                  ylim_fdom = NULL,
+                                  ylim_spcond = NULL,
+                                  ylim_battery = NULL,
+                                  battery_low_line = FALSE) {
+  dt <- ymd_hms(data$datetimeMT, tz = "US/Mountain")
+  
+  jpeg(file_path, width = 12, height = 8, units = "in", res = 1000)
+  plot.new()
+  par(mfrow = c(4, 2), mar = c(4, 4, 2, 1.5))
+  
+  # Water depth below surface (cm)
+  plot(dt, data$waterlevelbelowsurface_cm * -1,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "",
+       ylim = ylim_waterlevel)
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -350, ytop = 100, col = "lightgrey", lwd = 0)
+  lines(dt, data$waterlevelbelowsurface_cm * -1,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "b")
+  abline(v = as.POSIXct(service_times), col = "red")
+  abline(h = 0, col = "green")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Water depth below surface (cm)")
+  
+  # Turbidity (FNU)
+  plot(dt, data$Turbidity.FNU.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "")
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 2000, col = "lightgrey", lwd = 0)
+  lines(dt, data$Turbidity.FNU.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
+  abline(v = as.POSIXct(service_times), col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Turbidity (FNU)")
+  
+  # Dissolved Oxygen (mg/L)
+  plot(dt, data$ODO.mg.L.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "")
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 100, col = "lightgrey", lwd = 0)
+  lines(dt, data$ODO.mg.L.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o", ylim = ylim_odo)
+  abline(v = as.POSIXct(service_times), col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Dissolved Oxygen (mg/L)")
+  
+  # Temperature (deg C)
+  plot(dt, data$Temp..C.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "")
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 100, col = "lightgrey", lwd = 0)
+  lines(dt, data$Temp..C.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
+  abline(v = as.POSIXct(service_times), col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Temperature (deg C)")
+  
+  # fDOM (QSU) -- ylab="n" preserved from original, see NOTE above
+  plot(dt, data$fDOM.QSU.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "n",
+       ylim = ylim_fdom)
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 1000, col = "lightgrey", lwd = 0)
+  lines(dt, data$fDOM.QSU.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
+  abline(v = as.POSIXct(service_times), col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "fDOM (QSU)")
+  
+  # Specific Conductance (us/cm)
+  plot(dt, data$SpCond.µS.cm.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "",
+       ylim = ylim_spcond)
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 2000, col = "lightgrey", lwd = 0)
+  lines(dt, data$SpCond.µS.cm.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
+  abline(v = as.POSIXct(service_times), col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Specific Conductance (us/cm)")
+  
+  # Battery (volts)
+  plot(dt, data$Battery.V.mn,
+       pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "",
+       ylim = ylim_battery)
+  rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 2000, col = "lightgrey", lwd = 0)
+  lines(dt, data$Battery.V.mn,
+        pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
+  abline(v = as.POSIXct(service_times), col = "red")
+  if (battery_low_line) abline(h = 2.2, col = "red")
+  axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
+  title(main = "Battery (volts)")
+  
+  dev.off()
+}
 
-## SLOC last month ##
-tempdat = BEGI_EXO.or2[["SLOC"]][BEGI_EXO.or2[["SLOC"]]$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
-                                   BEGI_EXO.or2[["SLOC"]]$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"),]
+last_month <- function(data) {
+  data[data$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
+         data$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"), ]
+}
 
-# Save plot 
-jpeg("plots/SLOC_lastmonth.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.SLOC), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-## SLOC all ##
-tempdat = BEGI_EXO.or2[["SLOC"]]
-
-# Save plot 
-jpeg("plots/SLOC.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.SLOC), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOC), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-
-
-
-#### plot to check - SLOW ####
-
-## SLOW last month ##
-tempdat = BEGI_EXO.or2[["SLOW"]][BEGI_EXO.or2[["SLOW"]]$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
-                                   BEGI_EXO.or2[["SLOW"]]$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"),]
-
-# Save plot 
-jpeg("plots/SLOW_lastmonth.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.SLOW), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
+## SLOC ##
+plot_site_diagnostics(last_month(BEGI_EXO.or2[["SLOC"]]), service.SLOC,
+                      "plots/SLOC_lastmonth.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
+plot_site_diagnostics(BEGI_EXO.or2[["SLOC"]], service.SLOC,
+                      "plots/SLOC.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
 
 ## SLOW ##
-
-# Save plot 
-jpeg("plots/SLOW.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-200, 10))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.SLOW), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n",ylim=c(0,120), ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(-1,1300), type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.SLOW), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-
-
-#### plot to check - VDOS ####
-
-
-## VDOS last month ##
-tempdat = BEGI_EXO.or2[["VDOS"]][BEGI_EXO.or2[["VDOS"]]$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
-                                   BEGI_EXO.or2[["VDOS"]]$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"),]
-
-# Save plot 
-jpeg("plots/VDOS_lastmonth.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.VDOS), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-## VDOS all ##
-tempdat = BEGI_EXO.or2[["VDOS"]]
-
-# Save plot 
-jpeg("plots/VDOS.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.VDOS), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOS), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-#### plot to check - VDOW ####
-
-
-## VDOW last month ##
-tempdat = BEGI_EXO.or2[["VDOW"]][BEGI_EXO.or2[["VDOW"]]$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
-                                   BEGI_EXO.or2[["VDOW"]]$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"),]
-
-# Save plot 
-jpeg("plots/VDOW_lastmonth.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.VDOW), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-## VDOW all ##
-tempdat = BEGI_EXO.or2[["VDOW"]]
-
-# Save plot 
-jpeg("plots/VDOW.jpg", width = 12, height = 8, units="in", res=1000)
-
-plot.new()
-par(mfrow=c(4,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-350, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$waterlevelbelowsurface_cm*-1),
-      pch=20,col="black", xlab="", xaxt = "n", type="b")
-abline(v=as.POSIXct(service.VDOW), col="red")
-#abline(h=-300, col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Water depth below surface (cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Turbidity (FNU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Temp..C.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Temperature (deg C)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5))
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="")
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$SpCond.µS.cm.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Specific Conductance (us/cm)")
-
-plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-.2,4))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=2000, col="lightgrey", lwd = 0)
-lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Battery.V.mn),
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-abline(v=as.POSIXct(service.VDOW), col="red")
-abline(h=2.2, col="red")
-axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Battery (volts)")
-
-dev.off()
-
-
-
-
-#
-#### just well depths ####
-
-# plot all together
-plot.new()
-par(mfrow=c(2,2), mar=c(4,4,2,1.5))
-
-plot(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-200, 10))
-points(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$waterlevelbelowsurface_cm*-1),
-       pch=20,col="black", xlab="", xaxt = "n", ylab="", ylim=c(-200, 10))
-#abline(v=as.POSIXct(service), col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOS"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="VDO South")
-
-plot(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-200, 10))
-points(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$waterlevelbelowsurface_cm*-1),
-       pch=20,col="black", xlab="", xaxt = "n", ylab="", ylim=c(-200, 10))
-#abline(v=as.POSIXct(service), col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="VDO West")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-200, 10))
-points(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$waterlevelbelowsurface_cm*-1),
-       pch=20,col="black", xlab="", xaxt = "n", ylab="", ylim=c(-200, 10))
-#abline(v=as.POSIXct(service), col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOC"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="SLO Center")
-
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$waterlevelbelowsurface_cm*-1),
-     pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="", ylim=c(-200, 10))
-points(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$waterlevelbelowsurface_cm*-1),
-       pch=20,col="black", xlab="", xaxt = "n", ylab="", ylim=c(-200, 10))
-#abline(v=as.POSIXct(service), col="red")
-abline(h=0, col="green")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="SLO West")
-
-
-#### extra plots ####
-
-# smoothed DO close up
-BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm =
-  c(rollmean(BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn, 4, align="left"),
-    NA,NA,NA)
-
-BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc =
-  BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm +
-  abs(min(BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm, na.rm = T))
-
-BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc_c = BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc
-
-# BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc_c[BEGI_EXO.or2[["SLOC"]]$datetimeMT >
-#                                              as.POSIXct("2023-11-01 08:00:00") &
-#                                              BEGI_EXO.or2[["SLOC"]]$datetimeMT <
-#                                              as.POSIXct("2023-12-09 15:00:00")   ] = NA
-plot.new()
-par(mfrow=c(1,1), mar=c(7,4,2,1.5))
-plot(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),
-     BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc_c,
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(0,0.8), type="n", ylab="",
-     xlim=c(as.POSIXct("2023-11-01"),as.POSIXct("2024-01-06")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),
-      BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn_sm_bc_c,
-      pch=20,col="black", xlab="", xaxt = "n", type="o")
-#abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOC"]]$datetimeMT, breaks="24 hours"),format="%m-%d %R", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-
-
-### just latest DO and fDOM ###
-
-# SLOC
-plot.new()
-par(mfrow=c(2,1), mar=c(7,4,2,1.5))
-# DO
-plot(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,3), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOC"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-# fDOM
-plot(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(40,100), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOC"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOC"]]$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOC"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-# SLOW
-plot.new()
-par(mfrow=c(2,1), mar=c(7,4,2,1.5))
-# DO
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,3), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-# fDOM
-plot(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(40,100), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["SLOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["SLOW"]]$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["SLOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-# VDOW
-plot.new()
-par(mfrow=c(2,1), mar=c(7,4,2,1.5))
-# DO
-plot(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,3), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-# fDOM
-plot(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(40,100), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["VDOW"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOW"]]$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOW"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-
-# VDOS
-plot.new()
-par(mfrow=c(2,1), mar=c(7,4,2,1.5))
-# DO
-plot(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$ODO.mg.L.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,3), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$ODO.mg.L.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOS"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="Dissolved Oxygen (mg/L)")
-# fDOM
-plot(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$fDOM.QSU.mn),
-     pch=20,col="black", xlab="", xaxt = "n",ylim=c(40,100), type="n", ylab="",
-     xlim=c(as.POSIXct("2024-03-01"),as.POSIXct("2024-04-18")))
-rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-lines(ymd_hms(BEGI_EXO.or2[["VDOS"]]$datetimeMT, tz="US/Mountain"),(BEGI_EXO.or2[["VDOS"]]$fDOM.QSU.mn),
-      pch=20,col="black", xlab="", xaxt = "n",ylim=c(-.4,1), type="o")
-abline(v=as.POSIXct(service), col="red")
-axis.POSIXct(side=1,at=cut(BEGI_EXO.or2[["VDOS"]]$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-title(main="fDOM (QSU)")
-
-
+# NOTE: SLOW plots intentionally omit the battery ylim/low-battery line and
+# instead fix a handful of other axis limits - preserved from the original (see
+# NOTE above the function definition).
+plot_site_diagnostics(last_month(BEGI_EXO.or2[["SLOW"]]), service.SLOW,
+                      "plots/SLOW_lastmonth.jpg")
+plot_site_diagnostics(BEGI_EXO.or2[["SLOW"]], service.SLOW,
+                      "plots/SLOW.jpg",
+                      ylim_waterlevel = c(-200, 10), ylim_odo = c(-.4, 1),
+                      ylim_fdom = c(0, 120), ylim_spcond = c(-1, 1300))
+
+## VDOS ##
+plot_site_diagnostics(last_month(BEGI_EXO.or2[["VDOS"]]), service.VDOS,
+                      "plots/VDOS_lastmonth.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
+plot_site_diagnostics(BEGI_EXO.or2[["VDOS"]], service.VDOS,
+                      "plots/VDOS.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
+
+## VDOW ##
+plot_site_diagnostics(last_month(BEGI_EXO.or2[["VDOW"]]), service.VDOW,
+                      "plots/VDOW_lastmonth.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
+plot_site_diagnostics(BEGI_EXO.or2[["VDOW"]], service.VDOW,
+                      "plots/VDOW.jpg",
+                      ylim_battery = c(-.2, 4), battery_low_line = TRUE)
+
+
+#### Clear all files from the googledrive folder to end fresh ####
+
+# NOTE: DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
+
+googledrive_files <- list.files("googledrive", full.names = TRUE, recursive = TRUE)
+if (length(googledrive_files) > 0) {
+  file.remove(googledrive_files)
+}
+
+# now that your environment is cleaned up, now is a good time to commit, push/pull, and restart the R session to get ready for the next script in the workflow!
