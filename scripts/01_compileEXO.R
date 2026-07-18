@@ -3,10 +3,14 @@
 # the purpose of this script is to compile and plot EXO1 files from the Webster Lab BEGI project (data collected 2023-2024), temperature correct fDOM data, and compare it to grab samples of DOC.
 
 # Requirements: Google Drive access to the Webster Lab BEGI Drive folders for raw EXO1 files, manual water level readings (well soundings or "beeps"), fDOM temperature experiment data, DOC data, and sonde servicing times. 
-#     ---->>>> These should all be replaced with reference to files on HydroShare using an API - see draft HydroShare block below. <<<<-------
+#     ---->>>> These should all be replaced with reference to files on HydroShare using an API - see draft HydroShare block below.
 
-# Output used downstream: EXO_compiled/BEGI_EXO.or2.rds 
+# Outputs for downstream use:
+# 1. Iterative lists of dataframes (saved as RDS files) of data after each major processing step, with the final one used in all downstream workflows being "BEGI_EXO.or2.RDS".
+# 2. CSV files that contain all the servicing times at each well (e.g., "service.SLOC.csv". These are when sondes were taken out of water and are used in future scripts. 
+# 3. Timeseries plots of all focal data streams from EXO1 sondes and manual water depth readings (from "BEGI_EXO.or2.RDS"). The plots aren't used downstream, but are useful for reference. 
 
+#
 #### Libraries ####
 library(googledrive)
 library(tidyverse)
@@ -183,7 +187,7 @@ rm(BEGI_EXO.stz)
 
 # get data from googledrive
 beeper_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1J6iYi6RLIC-9ao8Tgo7twiPB_Afq3o9H")
-2
+
 googledrive::drive_download(as_id(beeper_tibble$id[beeper_tibble$name=="BEGI_beeper"]), overwrite = TRUE,
                             path="googledrive/BEGI_beeper.csv")
 beeper = read.csv("googledrive/BEGI_beeper.csv")
@@ -209,7 +213,7 @@ BEGI_EXO.stza = readRDS("EXO_compiled/BEGI_EXO.stza.rds")
 #### Complete timeseries with all possible time stamps ####
 
 # there is  randomly a datapoint from the year 2072 in the VDOS dataset. Removing any years that are way off here:
-BEGI_EXO.stza[["VDOS"]][BEGI_EXO.stza[["VDOS"]]$datetimeMT>as.POSIXct("2025-01-01 01:00:00"),] = NA
+BEGI_EXO.stza[["VDOS"]][BEGI_EXO.stza[["VDOS"]]$datetimeMT>as.POSIXct("2025-01-01 01:00:00", tz="US/Mountain"),] = NA
 
 max(c(BEGI_EXO.stza[["VDOW"]]$datetimeMT, BEGI_EXO.stza[["VDOS"]]$datetimeMT, BEGI_EXO.stza[["SLOC"]]$datetimeMT, BEGI_EXO.stza[["SLOW"]]$datetimeMT), na.rm = T)
 
@@ -261,7 +265,7 @@ BEGI_EXO.ts = readRDS("EXO_compiled/BEGI_EXO.ts.rds")
 
 # get data from googledrive
 tempcal_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1ToqSa027D2EkL7iXGhxlrcW-9bp5wwsd")
-2
+
 
 # import info from sonde 3231 experiment 
 googledrive::drive_download(as_id(tempcal_tibble$id[tempcal_tibble$name=="20241204_3231_fdom.csv"]), overwrite = TRUE,
@@ -310,15 +314,14 @@ sonde_3229_tempcal = as.data.frame(cbind(tempcalall[,"Temp.C_23G102560"],tempcal
 names(sonde_3229_tempcal) = c("temp_C","fDOM_QSU")
 
 
-# trim data frames
+# using visual inspection, trim data frames to exclude data points from the sensor settling or being out of water
 
 plot(sonde_3231_tempcal$fDOM_QSU ~ sonde_3231_tempcal$t)
 sonde_3231_tempcal = sonde_3231_tempcal[-c(250:259),]
 plot(sonde_3231_tempcal$fDOM_QSU ~ sonde_3231_tempcal$t)
 
 plot(sonde_5009_tempcal$fDOM_QSU ~ sonde_5009_tempcal$t)
-#sonde_5009_tempcal = sonde_5009_tempcal[-c(250:259),]
-#plot(sonde_5009_tempcal$fDOM_QSU ~ sonde_5009_tempcal$t)
+# does not need trimming
 
 plot(sonde_3230_tempcal$fDOM_QSU ~ sonde_3230_tempcal$t)
 sonde_3230_tempcal = sonde_3230_tempcal[-c(250:259),]
@@ -396,215 +399,217 @@ lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn.Tc),
 
 #### Save RDS of temp-corrected fdom 
 saveRDS(BEGI_EXO.ts, "EXO_compiled/BEGI_EXOz.ts.tc.rds")
+rm(list = ls())
+BEGI_EXO.ts.tc = readRDS("EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
-
+#
 #### NEED TO EDIT --->>> Import DOC data to compare fDOM to DOC ####
 ### CHANGE TO COMPARE TO DOC GRAB SAMPLES THAT WERE COLLECTED DURING SONDE DEPLOYMENTS
-
-#get DOC data from google drive
-doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1292UXqpLoBdB1uFytiBnxg6zFvO6AUMI")
-doc <- googledrive::drive_ls(path = doc_tibble, type = "xlsx")
-
-#import DOC data without values removed (complete DOC data)
-googledrive::drive_download(file = doc$id[doc$name=="NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx"], 
-                            path = "NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx",
-                            overwrite = T)
-docdata <- read_xlsx("NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx", sheet = 8)
-
-## wrangle DOC data ##
-
-names(docdata)[names(docdata) == 'Conc (mg/L)'] <- 'NPOC'
-names(docdata)[names(docdata) == 'Matrix Spike'] <- 'MatrixSpike'
-
-#filter by well
-docdata <- docdata %>%
-  spread (Well, NPOC)
-
-# filter docdata to df of each well
-#VDOW
-docVDOW <- data.frame(docdata$Sample,
-                      docdata$VDOW,
-                      docdata$MatrixSpike)
-docVDOW <- na.omit(docVDOW)
-
-#VDOS
-docVDOS <- data.frame(docdata$Sample,
-                      docdata$VDOS,
-                      docdata$MatrixSpike)
-docVDOS <- na.omit(docVDOS)
-
-#SLOC
-docSLOC <- data.frame(docdata$Sample,
-                      docdata$SLOC,
-                      docdata$MatrixSpike)
-docSLOC <- na.omit(docSLOC)
-
-#SLOW
-docSLOW <- data.frame(docdata$Sample,
-                      docdata$SLOW,
-                      docdata$MatrixSpike)
-docSLOW <- na.omit(docSLOW)
-
-
-#### Partition/clean fDOM data
-#add a column to label each chunk as Matrix spike
-
-#VDOW#
-BEGI_EXO.ts[["VDOW"]] <- BEGI_EXO.ts[["VDOW"]] %>%
-  mutate(MatrixSpike = case_when(
-    datetimeMT >= as.POSIXct("2025-06-10 13:45:00") & datetimeMT <= as.POSIXct("2025-06-10 14:08:00") ~ 0,
-    datetimeMT >= as.POSIXct("2025-06-10 14:34:00") & datetimeMT <= as.POSIXct("2025-06-10 14:49:00") ~ 0.5,
-    datetimeMT >= as.POSIXct("2025-06-10 15:13:00") & datetimeMT <= as.POSIXct("2025-06-10 15:27:00") ~ 1,
-    datetimeMT >= as.POSIXct("2025-06-10 15:48:00") & datetimeMT <= as.POSIXct("2025-06-10 16:14:00") ~ 2,
-    datetimeMT >= as.POSIXct("2025-06-10 16:36:00") & datetimeMT <= as.POSIXct("2025-06-10 17:03:00") ~ 5,
-    datetimeMT >= as.POSIXct("2025-06-10 17:23:00") & datetimeMT <= as.POSIXct("2025-06-10 17:45:00") ~ 10,
-  ))
-
-#VDOS#
-BEGI_EXO.ts[["VDOS"]] <- BEGI_EXO.ts[["VDOS"]] %>%
-  mutate(MatrixSpike = case_when(
-    datetimeMT >= as.POSIXct("2025-06-10 13:55:00") & datetimeMT <= as.POSIXct("2025-06-10 14:14:00") ~ 0,
-    datetimeMT >= as.POSIXct("2025-06-10 14:36:00") & datetimeMT <= as.POSIXct("2025-06-10 14:51:00") ~ 0.5,
-    datetimeMT >= as.POSIXct("2025-06-10 15:15:00") & datetimeMT <= as.POSIXct("2025-06-10 15:29:00") ~ 1,
-    datetimeMT >= as.POSIXct("2025-06-10 15:52:00") & datetimeMT <= as.POSIXct("2025-06-10 16:17:00") ~ 2,
-    datetimeMT >= as.POSIXct("2025-06-10 16:37:00") & datetimeMT <= as.POSIXct("2025-06-10 17:06:00") ~ 5,
-    datetimeMT >= as.POSIXct("2025-06-10 17:25:00") & datetimeMT <= as.POSIXct("2025-06-10 17:47:00") ~ 10,
-  ))
-
-#SLOC#
-BEGI_EXO.ts[["SLOC"]] <- BEGI_EXO.ts[["SLOC"]] %>%
-  mutate(MatrixSpike = case_when(
-    datetimeMT >= as.POSIXct("2025-06-10 13:59:00") & datetimeMT <= as.POSIXct("2025-06-10 14:17:00") ~ 0,
-    datetimeMT >= as.POSIXct("2025-06-10 14:40:00") & datetimeMT <= as.POSIXct("2025-06-10 14:53:00") ~ 0.5,
-    datetimeMT >= as.POSIXct("2025-06-10 15:17:00") & datetimeMT <= as.POSIXct("2025-06-10 15:32:00") ~ 1,
-    datetimeMT >= as.POSIXct("2025-06-10 15:59:00") & datetimeMT <= as.POSIXct("2025-06-10 16:21:00") ~ 2,
-    datetimeMT >= as.POSIXct("2025-06-10 16:39:00") & datetimeMT <= as.POSIXct("2025-06-10 17:08:00") ~ 5,
-    datetimeMT >= as.POSIXct("2025-06-10 17:27:00") & datetimeMT <= as.POSIXct("2025-06-10 17:49:00") ~ 10,
-  ))
-
-#SLOW#
-BEGI_EXO.ts[["SLOW"]] <- BEGI_EXO.ts[["SLOW"]] %>%
-  mutate(MatrixSpike = case_when(
-    datetimeMT >= as.POSIXct("2025-06-10 14:04:00") & datetimeMT <= as.POSIXct("2025-06-10 14:20:00") ~ 0,
-    datetimeMT >= as.POSIXct("2025-06-10 14:43:00") & datetimeMT <= as.POSIXct("2025-06-10 14:57:00") ~ 0.5,
-    datetimeMT >= as.POSIXct("2025-06-10 15:20:00") & datetimeMT <= as.POSIXct("2025-06-10 15:33:00") ~ 1,
-    datetimeMT >= as.POSIXct("2025-06-10 16:01:00") & datetimeMT <= as.POSIXct("2025-06-10 16:24:00") ~ 2,
-    datetimeMT >= as.POSIXct("2025-06-10 16:40:00") & datetimeMT <= as.POSIXct("2025-06-10 17:12:00") ~ 5,
-    datetimeMT >= as.POSIXct("2025-06-10 17:28:00") & datetimeMT <= as.POSIXct("2025-06-10 17:51:00") ~ 10,
-  ))
-
-#filter each matrix spike group to only include first 50% of datapoints, take average
-#VDOW#
-VDOW_mean_fdom <- BEGI_EXO.ts[["VDOW"]] %>%
-  filter(!is.na(MatrixSpike)) %>%
-  group_by(MatrixSpike) %>%
-  arrange(datetimeMT, .by_group = TRUE) %>%
-  mutate(
-    row_num = row_number(),
-    group_size = n(),
-    cutoff = floor(group_size / 2)  
-  ) %>%
-  filter(row_num <= cutoff) %>%
-  summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-  deframe()  
-
-
-#VDOS#
-VDOS_mean_fdom <- BEGI_EXO.ts[["VDOS"]] %>%
-  filter(!is.na(MatrixSpike)) %>%
-  group_by(MatrixSpike) %>%
-  arrange(datetimeMT, .by_group = TRUE) %>%
-  mutate(
-    row_num = row_number(),
-    group_size = n(),
-    cutoff = floor(group_size / 2)
-  ) %>%
-  filter(row_num <= cutoff) %>%
-  summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-  deframe()  
-
-#SLOC#
-SLOC_mean_fdom <- BEGI_EXO.ts[["SLOC"]] %>%
-  filter(!is.na(MatrixSpike)) %>%
-  group_by(MatrixSpike) %>%
-  arrange(datetimeMT, .by_group = TRUE) %>%
-  mutate(
-    row_num = row_number(),
-    group_size = n(),
-    cutoff = floor(group_size / 2)  
-  ) %>%
-  filter(row_num <= cutoff) %>%
-  summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-  deframe()  
-
-#SLOW#
-SLOW_mean_fdom <- BEGI_EXO.ts[["SLOW"]] %>%
-  filter(!is.na(MatrixSpike)) %>%
-  group_by(MatrixSpike) %>%
-  arrange(datetimeMT, .by_group = TRUE) %>%
-  mutate(
-    row_num = row_number(),
-    group_size = n(),
-    cutoff = floor(group_size / 2)  
-  ) %>%
-  filter(row_num <= cutoff) %>%
-  summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-  deframe()  
-
-
-#### combined doc/fdom df for each well
-#complete DOC data
-#VDOW#
-docVDOW$fdom <- VDOW_mean_fdom[match(docVDOW$docdata.MatrixSpike,names(VDOW_mean_fdom))]
-#docVDOW <- docVDOW[-c(3,5),] #removes 5 and 10 mg/L 
-#VDOS#
-docVDOS$fdom <- VDOS_mean_fdom[match(docVDOS$docdata.MatrixSpike,names(VDOS_mean_fdom))]
-#docVDOS <- docVDOS[-c(3,5),] #removes 5 and 10 mg/L
-#SLOC#
-docSLOC$fdom <- SLOC_mean_fdom[match(docSLOC$docdata.MatrixSpike,names(SLOC_mean_fdom))]
-#docSLOC <- docSLOC[-c(3,5),] #removes 5 and 10 mg/L
-#SLOW#
-docSLOW$fdom <- SLOW_mean_fdom[match(docSLOW$docdata.MatrixSpike,names(SLOW_mean_fdom))]
-#docSLOW <- docSLOW[-c(3,5),] #removes 5 and 10 mg/L
-
-
-
-#### linear regression fdom2doc
-#VDOW#
-plot(docVDOW$docdata.VDOW, docVDOW$fdom,
-     xlab = "NPOC (VDOW)",
-     ylab = "fDOM",
-     main = "fDOM vs NPOC")
-m.VDOW <- lm(fdom ~ docdata.VDOW, data = docVDOW)
-abline(m.VDOW, col = "blue", lwd = 2)
-summary(m.VDOW) #R2 = 0.68 with 10 mg/L removed
-
-#VDOS#
-plot(docVDOS$docdata.VDOS, docVDOS$fdom,
-     xlab = "NPOC (VDOS)",
-     ylab = "fDOM",
-     main = "fDOM vs NPOC")
-m.VDOS <- lm(fdom ~ docdata.VDOS, data = docVDOS)
-abline(m.VDOS, col = "blue", lwd = 2)
-summary(m.VDOS)
-
-#SLOC#
-plot(docSLOC$docdata.SLOC, docSLOC$fdom,
-     xlab = "NPOC (SLOC)",
-     ylab = "fDOM",
-     main = "fDOM vs NPOC")
-m.SLOC <- lm(fdom ~ docdata.SLOC, data = docSLOC)
-abline(m.SLOC, col = "blue", lwd = 2)
-summary(m.SLOC)
-
-#SLOW#
-plot(docSLOW$docdata.SLOW, docSLOW$fdom,
-     xlab = "NPOC (SLOW)",
-     ylab = "fDOM",
-     main = "fDOM vs NPOC")
-m.SLOW <- lm(fdom ~ docdata.SLOW, data = docSLOW)
-abline(m.SLOW, col = "blue", lwd = 2)
-summary(m.SLOW)
+# 
+# #get DOC data from google drive
+# doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1292UXqpLoBdB1uFytiBnxg6zFvO6AUMI")
+# doc <- googledrive::drive_ls(path = doc_tibble, type = "xlsx")
+# 
+# #import DOC data without values removed (complete DOC data)
+# googledrive::drive_download(file = doc$id[doc$name=="NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx"], 
+#                             path = "NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx",
+#                             overwrite = T)
+# docdata <- read_xlsx("NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx", sheet = 8)
+# 
+# ## wrangle DOC data ##
+# 
+# names(docdata)[names(docdata) == 'Conc (mg/L)'] <- 'NPOC'
+# names(docdata)[names(docdata) == 'Matrix Spike'] <- 'MatrixSpike'
+# 
+# #filter by well
+# docdata <- docdata %>%
+#   spread (Well, NPOC)
+# 
+# # filter docdata to df of each well
+# #VDOW
+# docVDOW <- data.frame(docdata$Sample,
+#                       docdata$VDOW,
+#                       docdata$MatrixSpike)
+# docVDOW <- na.omit(docVDOW)
+# 
+# #VDOS
+# docVDOS <- data.frame(docdata$Sample,
+#                       docdata$VDOS,
+#                       docdata$MatrixSpike)
+# docVDOS <- na.omit(docVDOS)
+# 
+# #SLOC
+# docSLOC <- data.frame(docdata$Sample,
+#                       docdata$SLOC,
+#                       docdata$MatrixSpike)
+# docSLOC <- na.omit(docSLOC)
+# 
+# #SLOW
+# docSLOW <- data.frame(docdata$Sample,
+#                       docdata$SLOW,
+#                       docdata$MatrixSpike)
+# docSLOW <- na.omit(docSLOW)
+# 
+# 
+# #### Partition/clean fDOM data
+# #add a column to label each chunk as Matrix spike
+# 
+# #VDOW#
+# BEGI_EXO.ts[["VDOW"]] <- BEGI_EXO.ts[["VDOW"]] %>%
+#   mutate(MatrixSpike = case_when(
+#     datetimeMT >= as.POSIXct("2025-06-10 13:45:00") & datetimeMT <= as.POSIXct("2025-06-10 14:08:00") ~ 0,
+#     datetimeMT >= as.POSIXct("2025-06-10 14:34:00") & datetimeMT <= as.POSIXct("2025-06-10 14:49:00") ~ 0.5,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:13:00") & datetimeMT <= as.POSIXct("2025-06-10 15:27:00") ~ 1,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:48:00") & datetimeMT <= as.POSIXct("2025-06-10 16:14:00") ~ 2,
+#     datetimeMT >= as.POSIXct("2025-06-10 16:36:00") & datetimeMT <= as.POSIXct("2025-06-10 17:03:00") ~ 5,
+#     datetimeMT >= as.POSIXct("2025-06-10 17:23:00") & datetimeMT <= as.POSIXct("2025-06-10 17:45:00") ~ 10,
+#   ))
+# 
+# #VDOS#
+# BEGI_EXO.ts[["VDOS"]] <- BEGI_EXO.ts[["VDOS"]] %>%
+#   mutate(MatrixSpike = case_when(
+#     datetimeMT >= as.POSIXct("2025-06-10 13:55:00") & datetimeMT <= as.POSIXct("2025-06-10 14:14:00") ~ 0,
+#     datetimeMT >= as.POSIXct("2025-06-10 14:36:00") & datetimeMT <= as.POSIXct("2025-06-10 14:51:00") ~ 0.5,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:15:00") & datetimeMT <= as.POSIXct("2025-06-10 15:29:00") ~ 1,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:52:00") & datetimeMT <= as.POSIXct("2025-06-10 16:17:00") ~ 2,
+#     datetimeMT >= as.POSIXct("2025-06-10 16:37:00") & datetimeMT <= as.POSIXct("2025-06-10 17:06:00") ~ 5,
+#     datetimeMT >= as.POSIXct("2025-06-10 17:25:00") & datetimeMT <= as.POSIXct("2025-06-10 17:47:00") ~ 10,
+#   ))
+# 
+# #SLOC#
+# BEGI_EXO.ts[["SLOC"]] <- BEGI_EXO.ts[["SLOC"]] %>%
+#   mutate(MatrixSpike = case_when(
+#     datetimeMT >= as.POSIXct("2025-06-10 13:59:00") & datetimeMT <= as.POSIXct("2025-06-10 14:17:00") ~ 0,
+#     datetimeMT >= as.POSIXct("2025-06-10 14:40:00") & datetimeMT <= as.POSIXct("2025-06-10 14:53:00") ~ 0.5,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:17:00") & datetimeMT <= as.POSIXct("2025-06-10 15:32:00") ~ 1,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:59:00") & datetimeMT <= as.POSIXct("2025-06-10 16:21:00") ~ 2,
+#     datetimeMT >= as.POSIXct("2025-06-10 16:39:00") & datetimeMT <= as.POSIXct("2025-06-10 17:08:00") ~ 5,
+#     datetimeMT >= as.POSIXct("2025-06-10 17:27:00") & datetimeMT <= as.POSIXct("2025-06-10 17:49:00") ~ 10,
+#   ))
+# 
+# #SLOW#
+# BEGI_EXO.ts[["SLOW"]] <- BEGI_EXO.ts[["SLOW"]] %>%
+#   mutate(MatrixSpike = case_when(
+#     datetimeMT >= as.POSIXct("2025-06-10 14:04:00") & datetimeMT <= as.POSIXct("2025-06-10 14:20:00") ~ 0,
+#     datetimeMT >= as.POSIXct("2025-06-10 14:43:00") & datetimeMT <= as.POSIXct("2025-06-10 14:57:00") ~ 0.5,
+#     datetimeMT >= as.POSIXct("2025-06-10 15:20:00") & datetimeMT <= as.POSIXct("2025-06-10 15:33:00") ~ 1,
+#     datetimeMT >= as.POSIXct("2025-06-10 16:01:00") & datetimeMT <= as.POSIXct("2025-06-10 16:24:00") ~ 2,
+#     datetimeMT >= as.POSIXct("2025-06-10 16:40:00") & datetimeMT <= as.POSIXct("2025-06-10 17:12:00") ~ 5,
+#     datetimeMT >= as.POSIXct("2025-06-10 17:28:00") & datetimeMT <= as.POSIXct("2025-06-10 17:51:00") ~ 10,
+#   ))
+# 
+# #filter each matrix spike group to only include first 50% of datapoints, take average
+# #VDOW#
+# VDOW_mean_fdom <- BEGI_EXO.ts[["VDOW"]] %>%
+#   filter(!is.na(MatrixSpike)) %>%
+#   group_by(MatrixSpike) %>%
+#   arrange(datetimeMT, .by_group = TRUE) %>%
+#   mutate(
+#     row_num = row_number(),
+#     group_size = n(),
+#     cutoff = floor(group_size / 2)  
+#   ) %>%
+#   filter(row_num <= cutoff) %>%
+#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
+#   deframe()  
+# 
+# 
+# #VDOS#
+# VDOS_mean_fdom <- BEGI_EXO.ts[["VDOS"]] %>%
+#   filter(!is.na(MatrixSpike)) %>%
+#   group_by(MatrixSpike) %>%
+#   arrange(datetimeMT, .by_group = TRUE) %>%
+#   mutate(
+#     row_num = row_number(),
+#     group_size = n(),
+#     cutoff = floor(group_size / 2)
+#   ) %>%
+#   filter(row_num <= cutoff) %>%
+#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
+#   deframe()  
+# 
+# #SLOC#
+# SLOC_mean_fdom <- BEGI_EXO.ts[["SLOC"]] %>%
+#   filter(!is.na(MatrixSpike)) %>%
+#   group_by(MatrixSpike) %>%
+#   arrange(datetimeMT, .by_group = TRUE) %>%
+#   mutate(
+#     row_num = row_number(),
+#     group_size = n(),
+#     cutoff = floor(group_size / 2)  
+#   ) %>%
+#   filter(row_num <= cutoff) %>%
+#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
+#   deframe()  
+# 
+# #SLOW#
+# SLOW_mean_fdom <- BEGI_EXO.ts[["SLOW"]] %>%
+#   filter(!is.na(MatrixSpike)) %>%
+#   group_by(MatrixSpike) %>%
+#   arrange(datetimeMT, .by_group = TRUE) %>%
+#   mutate(
+#     row_num = row_number(),
+#     group_size = n(),
+#     cutoff = floor(group_size / 2)  
+#   ) %>%
+#   filter(row_num <= cutoff) %>%
+#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
+#   deframe()  
+# 
+# 
+# #### combined doc/fdom df for each well
+# #complete DOC data
+# #VDOW#
+# docVDOW$fdom <- VDOW_mean_fdom[match(docVDOW$docdata.MatrixSpike,names(VDOW_mean_fdom))]
+# #docVDOW <- docVDOW[-c(3,5),] #removes 5 and 10 mg/L 
+# #VDOS#
+# docVDOS$fdom <- VDOS_mean_fdom[match(docVDOS$docdata.MatrixSpike,names(VDOS_mean_fdom))]
+# #docVDOS <- docVDOS[-c(3,5),] #removes 5 and 10 mg/L
+# #SLOC#
+# docSLOC$fdom <- SLOC_mean_fdom[match(docSLOC$docdata.MatrixSpike,names(SLOC_mean_fdom))]
+# #docSLOC <- docSLOC[-c(3,5),] #removes 5 and 10 mg/L
+# #SLOW#
+# docSLOW$fdom <- SLOW_mean_fdom[match(docSLOW$docdata.MatrixSpike,names(SLOW_mean_fdom))]
+# #docSLOW <- docSLOW[-c(3,5),] #removes 5 and 10 mg/L
+# 
+# 
+# 
+# #### linear regression fdom2doc
+# #VDOW#
+# plot(docVDOW$docdata.VDOW, docVDOW$fdom,
+#      xlab = "NPOC (VDOW)",
+#      ylab = "fDOM",
+#      main = "fDOM vs NPOC")
+# m.VDOW <- lm(fdom ~ docdata.VDOW, data = docVDOW)
+# abline(m.VDOW, col = "blue", lwd = 2)
+# summary(m.VDOW) #R2 = 0.68 with 10 mg/L removed
+# 
+# #VDOS#
+# plot(docVDOS$docdata.VDOS, docVDOS$fdom,
+#      xlab = "NPOC (VDOS)",
+#      ylab = "fDOM",
+#      main = "fDOM vs NPOC")
+# m.VDOS <- lm(fdom ~ docdata.VDOS, data = docVDOS)
+# abline(m.VDOS, col = "blue", lwd = 2)
+# summary(m.VDOS)
+# 
+# #SLOC#
+# plot(docSLOC$docdata.SLOC, docSLOC$fdom,
+#      xlab = "NPOC (SLOC)",
+#      ylab = "fDOM",
+#      main = "fDOM vs NPOC")
+# m.SLOC <- lm(fdom ~ docdata.SLOC, data = docSLOC)
+# abline(m.SLOC, col = "blue", lwd = 2)
+# summary(m.SLOC)
+# 
+# #SLOW#
+# plot(docSLOW$docdata.SLOW, docSLOW$fdom,
+#      xlab = "NPOC (SLOW)",
+#      ylab = "fDOM",
+#      main = "fDOM vs NPOC")
+# m.SLOW <- lm(fdom ~ docdata.SLOW, data = docSLOW)
+# abline(m.SLOW, col = "blue", lwd = 2)
+# summary(m.SLOW)
 
 # none of the relationships strong enough to convert fDOM to DOC
 
@@ -684,10 +689,11 @@ for(i in seq_along(SLOC_servicedates)) {
   SLOC_servicetimes[[i]] <- seq(from = from_val, to = to_val + 60*60*6, by = "15 min")
 }
 # add missing date/times
-SLOC_servicetimes[[31]] = seq(
-  from = as.POSIXct("2024-06-28 14:00", tz="US/Mountain"),
-  to = as.POSIXct("2024-07-02 13:45", tz="US/Mountain")+(60*60*6),
-  by = "15 min")
+SLOC_servicetimes <- append(SLOC_servicetimes, list(
+  seq(from = as.POSIXct("2024-06-28 14:00", tz="US/Mountain"),
+      to   = as.POSIXct("2024-07-02 13:45", tz="US/Mountain") + (60*60*6),
+      by   = "15 min")
+))
 SLOC_servicetimes_vector = do.call("c", SLOC_servicetimes)
 
 # SLOW
@@ -706,30 +712,37 @@ for(i in seq_along(SLOW_servicedates)) {
   SLOW_servicetimes[[i]] <- seq(from = from_val, to = to_val + 60*60*6, by = "15 min")
 }
 # add missing date/times
-SLOW_servicetimes[[33]] = seq(
-  from = as.POSIXct("2024-04-17 18:15", tz="US/Mountain"),
-  to = as.POSIXct("2024-04-19 17:30", tz="US/Mountain")+(60*60*6),
-  by = "15 min")
-SLOW_servicetimes[[34]] = seq(
-  from = as.POSIXct("2023-11-03 14:15:00", tz="US/Mountain"),
-  to = as.POSIXct("2023-11-03 15:00:00", tz="US/Mountain")+(60*60*6),
-  by = "15 min")
+SLOW_servicetimes <- append(SLOW_servicetimes, list(
+  seq(from = as.POSIXct("2024-04-17 18:15", tz="US/Mountain"),
+      to   = as.POSIXct("2024-04-19 17:30", tz="US/Mountain") + (60*60*6),
+      by   = "15 min"),
+  seq(from = as.POSIXct("2023-11-03 14:15:00", tz="US/Mountain"),
+      to   = as.POSIXct("2023-11-03 15:00:00", tz="US/Mountain") + (60*60*6),
+      by   = "15 min")
+))
 # compile
 SLOW_servicetimes_vector = do.call("c", SLOW_servicetimes)
 
 
 ## remove EXO data from servicing times
-BEGI_EXO.or = BEGI_EXO.ts
-# VDOW
-BEGI_EXO.or[["VDOW"]][2:26] [BEGI_EXO.or[["VDOW"]]$datetimeMT %in% VDOW_servicetimes_vector,] = NA
-# VDOS
-BEGI_EXO.or[["VDOS"]][2:26] [BEGI_EXO.or[["VDOS"]]$datetimeMT %in% VDOS_servicetimes_vector,] = NA
-# SLOC
-BEGI_EXO.or[["SLOC"]][2:26] [BEGI_EXO.or[["SLOC"]]$datetimeMT %in% SLOC_servicetimes_vector,] = NA
-# SLOW
-BEGI_EXO.or[["SLOW"]][2:26] [BEGI_EXO.or[["SLOW"]]$datetimeMT %in% SLOW_servicetimes_vector,] = NA
+BEGI_EXO.or = BEGI_EXO.ts.tc
 
+# columns that should NEVER be blanked out - everything else gets NA'd
+id_cols <- c("min", "datetimeMT", "date", "time","siteID", "wellID", "sondeID", "rho", "Tref")
 
+service_vectors <- list(
+  VDOW = VDOW_servicetimes_vector,
+  VDOS = VDOS_servicetimes_vector,
+  SLOC = SLOC_servicetimes_vector,
+  SLOW = SLOW_servicetimes_vector
+)
+
+siteIDz = c("VDOW", "VDOS", "SLOW", "SLOC")
+for (i in siteIDz) {
+  value_cols <- setdiff(names(BEGI_EXO.or[[i]]), id_cols)
+  rows_in_service <- BEGI_EXO.or[[i]]$datetimeMT %in% service_vectors[[i]]
+  BEGI_EXO.or[[i]][rows_in_service, value_cols] <- NA
+}
 
 
 
@@ -745,22 +758,30 @@ BEGI_EXO.or = readRDS("EXO_compiled/BEGI_EXO.or.rds")
 
 BEGI_EXO.or2 = BEGI_EXO.or
 
+# columns that should NEVER be blanked out - everything else gets NA'd
+id_cols <- c("min", "datetimeMT", "date", "time","siteID", "wellID", "sondeID", "rho", "Tref")
+
 siteIDz = c("VDOW", "VDOS", "SLOW", "SLOC")
-for(i in siteIDz){
-  # remove out of water readings
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$ODO.mg.L.mn) & 
-                             BEGI_EXO.or2[[i]]$ODO.mg.L.mn > 20,] = NA
-  # remove fault readings
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$SpCond.µS.cm.mn) & 
-                             BEGI_EXO.or2[[i]]$SpCond.µS.cm.mn < 2,] = NA
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$Temp..C.mn) & 
-                             BEGI_EXO.or2[[i]]$Temp..C.mn < -10,] = NA
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$Temp..C.mn) & 
-                             BEGI_EXO.or2[[i]]$Temp..C.mn > 40,] = NA
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$Turbidity.FNU.mn) & 
-                             BEGI_EXO.or2[[i]]$Turbidity.FNU.mn < -10,] = NA
-  BEGI_EXO.or2[[i]][2:26] [!is.na(BEGI_EXO.or2[[i]]$fDOM.QSU.mn) & 
-                             BEGI_EXO.or2[[i]]$fDOM.QSU.mn < 5,] = NA
+for (i in siteIDz) {
+  value_cols <- setdiff(names(BEGI_EXO.or2[[i]]), id_cols)
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$ODO.mg.L.mn) & BEGI_EXO.or2[[i]]$ODO.mg.L.mn > 20
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$SpCond.µS.cm.mn) & BEGI_EXO.or2[[i]]$SpCond.µS.cm.mn < 2
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$Temp..C.mn) & BEGI_EXO.or2[[i]]$Temp..C.mn < -10
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$Temp..C.mn) & BEGI_EXO.or2[[i]]$Temp..C.mn > 40
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$Turbidity.FNU.mn) & BEGI_EXO.or2[[i]]$Turbidity.FNU.mn < -10
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
+  
+  rows <- !is.na(BEGI_EXO.or2[[i]]$fDOM.QSU.mn) & BEGI_EXO.or2[[i]]$fDOM.QSU.mn < 5
+  BEGI_EXO.or2[[i]][rows, value_cols] <- NA
 }
 
 #### Save and re-add data with out of water and faulting readings removed
