@@ -607,11 +607,10 @@ summary(m.SLOW)
 
 
 
-#### remove servicing times from data ####
+#### Remove servicing times from data ####
 
 # get data from googledrive
 service_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1quyArAKgI5qn_lz4n1vjnoMrM0XJWdDl")
-2
 googledrive::drive_download(as_id(service_tibble$id[service_tibble$name=="sensor_event_log.xlsx"]), overwrite = TRUE,path="googledrive/sensor_event_log.xlsx")
 
 # read in file and filter to EXO1 removal and deployments
@@ -635,14 +634,6 @@ servicetimes = service[!is.na(service$datetimeMT),]
 # VDOW
 VDOW_servicedates = unique(servicetimes$date[servicetimes$location=="VDOW"])
 VDOW_servicetimes = list()
-# for(i in c(1:length(VDOW_servicedates))){
-#   VDOW_servicetimes[[i]] = seq(
-#     from = servicetimes$datetimeMT[
-#       servicetimes$location=="VDOW" & servicetimes$observation=="removed" & servicetimes$date==VDOW_servicedates[i]],
-#     to = (servicetimes$datetimeMT[
-#       servicetimes$location=="VDOW" & servicetimes$observation=="deployed" & servicetimes$date==VDOW_servicedates[i]])+(60*60*6),
-#     by = "15 min")
-# }
 for(i in seq_along(VDOW_servicedates)) {
   from_val <- servicetimes$datetimeMT[servicetimes$location=="VDOW" & servicetimes$observation=="removed" & servicetimes$date==VDOW_servicedates[i]]
   to_val   <- servicetimes$datetimeMT[servicetimes$location=="VDOW" & servicetimes$observation=="deployed" & servicetimes$date==VDOW_servicedates[i]]
@@ -659,14 +650,6 @@ VDOW_servicetimes_vector = do.call("c", VDOW_servicetimes)
 # VDOS
 VDOS_servicedates = unique(servicetimes$date[servicetimes$location=="VDOS"])
 VDOS_servicetimes = list()
-# for(i in c(1:length(VDOS_servicedates))){
-#   VDOS_servicetimes[[i]] = seq(
-#     from = servicetimes$datetimeMT[
-#       servicetimes$location=="VDOS" & servicetimes$observation=="removed" & servicetimes$date==VDOS_servicedates[i]],
-#     to = servicetimes$datetimeMT[
-#       servicetimes$location=="VDOS" & servicetimes$observation=="deployed" & servicetimes$date==VDOS_servicedates[i]]+(60*60*6),
-#     by = "5 min")
-# }
 for(i in seq_along(VDOS_servicedates)) {
   from_val <- servicetimes$datetimeMT[servicetimes$location=="VDOS" & servicetimes$observation=="removed" & servicetimes$date==VDOS_servicedates[i]]
   to_val   <- servicetimes$datetimeMT[servicetimes$location=="VDOS" & servicetimes$observation=="deployed" & servicetimes$date==VDOS_servicedates[i]]
@@ -746,15 +729,15 @@ BEGI_EXO.or[["SLOW"]][2:26] [BEGI_EXO.or[["SLOW"]]$datetimeMT %in% SLOW_servicet
 
 
 
-#### save and re-add data with servicing times removed ####
+#### Save and re-add data with servicing times removed ####
 
 saveRDS(BEGI_EXO.or, "EXO_compiled/BEGI_EXO.or.rds")
-#rm(list = ls())
+rm(list = ls())
 BEGI_EXO.or = readRDS("EXO_compiled/BEGI_EXO.or.rds")
 
 
 
-#### remove obvious out of water and faulting readings ####
+#### Remove obvious out of water and faulting readings ####
 
 BEGI_EXO.or2 = BEGI_EXO.or
 
@@ -776,16 +759,33 @@ for(i in siteIDz){
                              BEGI_EXO.or2[[i]]$fDOM.QSU.mn < 5,] = NA
 }
 
-#### save and re-add data with out of water and faulting readings removed ####
+#### Save and re-add data with out of water and faulting readings removed ####
 
 saveRDS(BEGI_EXO.or2, "EXO_compiled/BEGI_EXO.or2.rds")
-#rm(list = ls())
+rm(list = ls())
 BEGI_EXO.or2 = readRDS("EXO_compiled/BEGI_EXO.or2.rds")
 
 
 
 
-#### get service times and sunrise/sunset for plotting ####
+#### Get service times and sunrise/sunset for plotting ####
+
+# read in file and filter to EXO1 removal and deployments
+service = readxl::read_excel("googledrive/sensor_event_log.xlsx")
+service = service[service$model=="EXO1",]
+service = service[service$observation=="removed" | service$observation=="deployed",]
+
+# format date and time
+service$datetime = paste(service$date,  service$time, sep = " ")
+# convert to POIXct and set timezone
+service$datetimeMT<-as.POSIXct(service$datetime, 
+                               format = "%Y-%m-%d %H:%M",
+                               tz="US/Mountain")
+service$date = as.Date(service$date)
+
+# remove rows with no exact times
+servicetimes = service[!is.na(service$datetimeMT),]
+
 
 # service dates
 
@@ -812,7 +812,9 @@ pm.pts = suntimes$sunset[-(nrow(suntimes))]
 am.pts = suntimes$sunrise[-1]
 
 
-#### plot to check ####
+#### Plot to check ####
+
+# custom plotting function of all data
 plot_site_diagnostics <- function(data, service_times, file_path,
                                   ylim_waterlevel = NULL,
                                   ylim_odo = NULL,
@@ -868,8 +870,8 @@ plot_site_diagnostics <- function(data, service_times, file_path,
   axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
   title(main = "Temperature (deg C)")
   
-  # fDOM (QSU) -- ylab="n" preserved from original, see NOTE above
-  plot(dt, data$fDOM.QSU.mn,
+  # fDOM (QSU) - temp corrected
+  plot(dt, data$fDOM.QSU.mn.Tc,
        pch = 20, col = "black", xlab = "", xaxt = "n", type = "n", ylab = "n",
        ylim = ylim_fdom)
   rect(xleft = pm.pts, xright = am.pts, ybottom = -4, ytop = 1000, col = "lightgrey", lwd = 0)
@@ -877,7 +879,7 @@ plot_site_diagnostics <- function(data, service_times, file_path,
         pch = 20, col = "black", xlab = "", xaxt = "n", type = "o")
   abline(v = as.POSIXct(service_times), col = "red")
   axis.POSIXct(side = 1, at = cut(data$datetimeMT, breaks = "24 hours"), format = "%m-%d", las = 2)
-  title(main = "fDOM (QSU)")
+  title(main = "fDOM (QSU) temp. corrected")
   
   # Specific Conductance (us/cm)
   plot(dt, data$SpCond.µS.cm.mn,
@@ -904,7 +906,7 @@ plot_site_diagnostics <- function(data, service_times, file_path,
   
   dev.off()
 }
-
+# custom plotting function of last month of data
 last_month <- function(data) {
   data[data$datetimeMT < as.POSIXct("2024-09-15 00:00:01 MDT") &
          data$datetimeMT > as.POSIXct("2024-08-15 00:00:01 MDT"), ]
@@ -919,9 +921,6 @@ plot_site_diagnostics(BEGI_EXO.or2[["SLOC"]], service.SLOC,
                       ylim_battery = c(-.2, 4), battery_low_line = TRUE)
 
 ## SLOW ##
-# NOTE: SLOW plots intentionally omit the battery ylim/low-battery line and
-# instead fix a handful of other axis limits - preserved from the original (see
-# NOTE above the function definition).
 plot_site_diagnostics(last_month(BEGI_EXO.or2[["SLOW"]]), service.SLOW,
                       "plots/SLOW_lastmonth.jpg")
 plot_site_diagnostics(BEGI_EXO.or2[["SLOW"]], service.SLOW,
@@ -929,7 +928,7 @@ plot_site_diagnostics(BEGI_EXO.or2[["SLOW"]], service.SLOW,
                       ylim_waterlevel = c(-200, 10), ylim_odo = c(-.4, 1),
                       ylim_fdom = c(0, 120), ylim_spcond = c(-1, 1300))
 
-## VDOS ##
+ ## VDOS ##
 plot_site_diagnostics(last_month(BEGI_EXO.or2[["VDOS"]]), service.VDOS,
                       "plots/VDOS_lastmonth.jpg",
                       ylim_battery = c(-.2, 4), battery_low_line = TRUE)
