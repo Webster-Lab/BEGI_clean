@@ -1,47 +1,72 @@
-#### read me ####
-# the purpose of this script is to use corrected sensor depth data and  gw depth data to create a continuous dataset of depth to gw in the 4 wells used for the BEGI pilot study.
+#### READ ME ####
 
-# sensor depth data will first be corrected to account for any jumps in sensor data that occurred as a result of the cable length changing.
-# sensor depth data will be plotted against manual readings of depth to groundwater (DTW). The slope and intercept of the relationship will be calculated to estimate depth to gw.
+# The purpose of this script is to use manually measured groundwater depth data with pressure transducer data (HOBO U20s, hereafter "PT data") to create a continuous (every 15 min) dataset of depth to gw in the 4 wells used for the BEGI 2023-2024 study.
 
-# Sensor depth data was obtained by compensating in-well PT data for atmospheric pressure using the HOBO software wizard. Atmospheric pressure was recorded on site by a HOBO PT installed at the top of a well casing (out of water) for the dates/times 2023-10-20 12:30:00 to 2024-06-24 11:15:00. However, after 2024-06-24 11:15:00, the storage on the on-site in-air PT was exceeded and no more atmospheric pressure data is available on-site. Instead, we downloaded sea level pressure data from the Albuquerque airport from https://www.weather.gov/wrh/timeseries?site=KABQ&hourly=true, which is ~ 10 km northeast and 84 m in elevation higher than the site. We corrected this data from sea level to local atmospheric pressure using the equation [where the BP readings MUST be in mm Hg) is: True BP = [Corrected BP] – [2.5 * (Local Altitude in ft above sea level/100)]. Note that Inches of Hg x 25.4 = mm Hg]. We elected to use the airport data to compensate the entire in-well PT dataset to provide consistency of the approach. In-well PT data was compensated using "option 1" in the HOBO software wizard, which compensates for the data only where the two datasets overlap, interpolating between points that do not exactly align. 
+# PT data is first corrected to account for any jumps in data that occurred as a result of the cable length changing.
+# PT data is then compared to manual readings of depth to groundwater (DTW) from sounding wells with a water level reader or "beeper". The slope and intercept of the relationship is then used to convert PT data to DTW.
+
+# In-water PT data was compensated for atmospheric pressure using the HOBO software wizard. Atmospheric pressure was recorded on site by a HOBO PT installed at the top of a well casing (out of water) for the dates/times 2023-10-20 12:30:00 to 2024-06-24 11:15:00. However, after 2024-06-24 11:15:00, the storage on the on-site in-air PT was exceeded and no more atmospheric pressure data is available on-site. Instead, we downloaded sea level pressure data from the Albuquerque airport (KABQ) from https://www.weather.gov/wrh/timeseries?site=KABQ&hourly=true, which is ~ 10 km northeast and 84 m in elevation higher than the site. We corrected this data from sea level to local atmospheric pressure using the equation [where the BP readings MUST be in mm Hg) is: True BP = [Corrected BP] – [2.5 * (Local Altitude in ft above sea level/100)]. Note that Inches of Hg x 25.4 = mm Hg]. We elected to use the airport data to compensate the entire in-water PT dataset to ensure consistency of the approach. In-water PT data was compensated using "option 1" in the HOBO software wizard, which compensates for the data only where the two datasets overlap, interpolating between points that do not exactly align. 
 
 #
-#### libraries ####
+#### Libraries ####
 library(googledrive)
 library(tidyverse)
 library(broom)
 library(zoo)
 library(stringr)
 library(suncalc)
-library(dataRetrieval) # Download USGS discharge data
-options(scipen=999)
+library(dataRetrieval) # To download USGS discharge data
 library(viridis)
 library(gridExtra)
 library(patchwork)
 
-#
-#### load and wrangle PT data from google drive ####
+# turn off scientific notation
+options(scipen=999)
 
-ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1FBwR7Bz4ayynuARNE7drXXl2lSX9rZcN")
-2
-for (file_id in ls_tibble$id) {
-  try({googledrive::drive_download(as_id(file_id))})
+#
+
+#### Check/make file structure ####
+
+# make sure output folders exist before anything tries to write to them
+dir.create("DTW_compiled", recursive = TRUE, showWarnings = FALSE)
+dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+dir.create("googledrive", recursive = TRUE, showWarnings = FALSE)
+
+#### Clear all files from the googledrive folder to start fresh
+
+googledrive_files <- list.files("googledrive", full.names = TRUE, recursive = TRUE)
+if (length(googledrive_files) > 0) {
+  file.remove(googledrive_files)
 }
-# add overwrite = TRUE if for some reason you want to replace files previously downloaded. 
+
+#
+#### Load and wrangle PT data from Google Drive ####
+
+ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/10Wp8MgiJdrgCNssj4Ig34y5hMM_EfRE3")
+2
+# download for googledrive folder
+for (i in seq_len(nrow(ls_tibble))) {
+  try({
+    googledrive::drive_download(
+      as_id(ls_tibble$id[i]),
+      path = file.path("googledrive", ls_tibble$name[i]),
+      overwrite = TRUE
+    )
+  })
+}
 
 #+++++++++ stitch together data files for each well
 # import data
 siteIDz = c("VDOW", "VDOS", "SLOW", "SLOC")
 BEGI_PTz = list()
 for(i in siteIDz){
-  file_list <- list.files(recursive=F, pattern=paste(i, "_correctedful.csv", sep=""))
+  file_list <- list.files("googledrive", recursive=F, pattern=paste(i, "_correctedful.csv", sep=""), full.names=TRUE)
   BEGI_PTz[[i]] = lapply(file_list, read.csv, 
                          stringsAsFactors=FALSE, skip=1,header=T,
                          fileEncoding="utf-8")
 }
 
-# it looks like there was one instance of the datetime format getting changed to GMT0700 when the data was downloaded. All other data is in GMT0600. The GMT/UTC minus 6 hours offset is used in the Mountain Time Zone when operating in Daylight Saving Time. I will convert this instance of GMT0700 to GMT0600 so that everything is in Mountain Daylight Savings Time, and then convert it all to R's "US/Mountain", which accounts for the time change. Hopefully that will catch the time change.
+# it looks like there was one instance of the datetime format getting changed to GMT0700 when the data was downloaded. All other data is in GMT0600. The GMT/UTC minus 6 hours offset is used in the Mountain Time Zone when operating in Daylight Saving Time. I will convert this instance of GMT0700 to GMT0600 so that everything is in Mountain Daylight Savings Time, and then convert it all to R's "US/Mountain", which accounts for the time change. 
 BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.06.00"]] = as.POSIXct(BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.07.00"]], 
                                                                format = "%m/%d/%y %I:%M:%S %p",
                                                                tz="Etc/GMT+7")
