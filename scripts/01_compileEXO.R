@@ -1,6 +1,9 @@
-#### read me ####
+#### READ ME ####
 
-# the purpose of this script is to compile and plot EXO1 files from the Webster Lab BEGI project (data collected 2023-2024), temperature correct fDOM data, and calibrate it to grab samples of DOC
+# the purpose of this script is to compile and plot EXO1 files from the Webster Lab BEGI project (data collected 2023-2024), temperature correct fDOM data, and compare it to grab samples of DOC.
+
+# Requirements: Google Drive access to the Webster Lab BEGI Drive folders for raw EXO1 files, manual water level readings (well soundings or "beeps"), fDOM temperature experiment data, DOC data, and sonde servicing times. 
+#     ---->>>> These should all be replaced with reference to files on HydroShare using an API - see draft HydroShare block below. <<<<-------
 
 # Output used downstream: EXO_compiled/BEGI_EXO.or2.rds 
 
@@ -21,7 +24,7 @@ dir.create("EXO_compiled", recursive = TRUE, showWarnings = FALSE)
 dir.create("plots", recursive = TRUE, showWarnings = FALSE)
 dir.create("googledrive", recursive = TRUE, showWarnings = FALSE)
 
-#### Clear all files from the googledrive folder to start fresh ####
+#### Clear all files from the googledrive folder to start fresh
 
 # NOTE: DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
 
@@ -30,10 +33,10 @@ if (length(googledrive_files) > 0) {
   file.remove(googledrive_files)
 }
 
-#### Load raw EXO1 data from google drive ####
+#### Load raw EXO1 data from Google Drive ####
 
 # ID link
-ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1qsjKPD5T4opFas37clgFX8CqV5R1PHxn")
+ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1TRJ8E4O8bFly-n9GeViOTRR8I9Wtq3Fr")
 2 # authenticate
 # download for googledrive folder
 for (i in seq_len(nrow(ls_tibble))) {
@@ -46,9 +49,9 @@ for (i in seq_len(nrow(ls_tibble))) {
   })
 }
 
-#### DRAFT: load raw EXO1 files from HydroShare instead of Google Drive ####
+#### DRAFT --->>> load raw EXO1 files from HydroShare instead of Google Drive ####
 #
-# Once the raw EXO1 files are archived on HydroShare (https://www.hydroshare.org), this block is meant to replace the googledrive block above, removing the dependency on Drive OAuth access for anyone re-running this pipeline.
+# Once the raw EXO1 files are archived on HydroShare (https://www.hydroshare.org), this block is meant to replace the googledrive block above, removing the dependency on Drive OAuth access for anyone re-running this pipeline. We should do the 
 
 # Uses HSClientR (in-development, not on CRAN yet):
 #   remotes::install_github("program--/HSClientR")
@@ -119,7 +122,7 @@ for(i in siteIDz){
 
 
 #
-#### Format dates ####
+#### Format dates
 
 for(i in siteIDz){
   # put date and time in same column
@@ -137,7 +140,7 @@ for(i in siteIDz){
 
 
 #
-#### Check variable names ####
+#### Check variable names
 #check the variable order for each sonde and edit names if necessary
 
 names(BEGI_EXOz[["VDOW"]]) == names(BEGI_EXOz[["VDOS"]])
@@ -165,7 +168,7 @@ for(i in siteIDz){
   BEGI_EXO.stz[[i]]$datetimeMT<-as.POSIXct(BEGI_EXO.stz[[i]]$min, "%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 }
 
-#### Save and re-add burst-compiled files ####
+#### Save and re-add burst-compiled files
 
 saveRDS(BEGI_EXO.stz, "EXO_compiled/BEGI_EXO.stz.rds")
 rm(list = ls())
@@ -173,13 +176,13 @@ BEGI_EXO.stz = readRDS("EXO_compiled/BEGI_EXO.stz.rds")
 
 
 
-#### Stitch in water level data ####
+#### Stitch in manual water level data ("beeps") ####
 
 BEGI_EXO.stza = BEGI_EXO.stz
 rm(BEGI_EXO.stz)
 
 # get data from googledrive
-beeper_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1L5ywkdYUOxhE3GPm7vbMiwgObOyn3awF")
+beeper_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1J6iYi6RLIC-9ao8Tgo7twiPB_Afq3o9H")
 2
 googledrive::drive_download(as_id(beeper_tibble$id[beeper_tibble$name=="BEGI_beeper"]), overwrite = TRUE,
                             path="googledrive/BEGI_beeper.csv")
@@ -247,16 +250,17 @@ dup.all = rbind(dup, dup.2)
 BEGI_EXO.ts[["SLOW"]] = BEGI_EXO.ts[["SLOW"]][! BEGI_EXO.ts[["SLOW"]]$min %in% dup.2$min,]
 #reran dup check, and dup is gone!
 
-#### Save and re-add clean time series data ####
+#### Save and re-add clean time series data
 
 saveRDS(BEGI_EXO.ts, "EXO_compiled/BEGI_EXO.ts.rds")
 rm(list = ls())
 BEGI_EXO.ts = readRDS("EXO_compiled/BEGI_EXO.ts.rds")
 
 
-#### Temp correction of fdom WITHOUT service times removed ####
+#### Temp correction of fdom ####
+
 # get data from googledrive
-tempcal_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1u4yAZIoqYC2d1BSkt8iG5IT3lPUp3ALo")
+tempcal_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1ToqSa027D2EkL7iXGhxlrcW-9bp5wwsd")
 2
 
 # import info from sonde 3231 experiment 
@@ -390,11 +394,11 @@ title(main="fDOM (QSU)")
 lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn.Tc),
       pch=20,col="blue", xlab="", xaxt = "n", type="l")
 
-#### Save RDS of temp-corrected fdom WITHOUT servicing times removed ####
+#### Save RDS of temp-corrected fdom 
 saveRDS(BEGI_EXO.ts, "EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
 
-#### NEED TO EDIT --- Import DOC data to attempt to calibrate fDOM to DOC and show calibration fail ####
+#### NEED TO EDIT --->>> Import DOC data to compare fDOM to DOC ####
 ### CHANGE TO COMPARE TO DOC GRAB SAMPLES THAT WERE COLLECTED DURING SONDE DEPLOYMENTS
 
 #get DOC data from google drive
@@ -610,7 +614,7 @@ summary(m.SLOW)
 #### Remove servicing times from data ####
 
 # get data from googledrive
-service_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1quyArAKgI5qn_lz4n1vjnoMrM0XJWdDl")
+service_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1J6iYi6RLIC-9ao8Tgo7twiPB_Afq3o9H")
 googledrive::drive_download(as_id(service_tibble$id[service_tibble$name=="sensor_event_log.xlsx"]), overwrite = TRUE,path="googledrive/sensor_event_log.xlsx")
 
 # read in file and filter to EXO1 removal and deployments
@@ -729,7 +733,7 @@ BEGI_EXO.or[["SLOW"]][2:26] [BEGI_EXO.or[["SLOW"]]$datetimeMT %in% SLOW_servicet
 
 
 
-#### Save and re-add data with servicing times removed ####
+#### Save and re-add data with servicing times removed
 
 saveRDS(BEGI_EXO.or, "EXO_compiled/BEGI_EXO.or.rds")
 rm(list = ls())
@@ -759,16 +763,15 @@ for(i in siteIDz){
                              BEGI_EXO.or2[[i]]$fDOM.QSU.mn < 5,] = NA
 }
 
-#### Save and re-add data with out of water and faulting readings removed ####
+#### Save and re-add data with out of water and faulting readings removed
 
 saveRDS(BEGI_EXO.or2, "EXO_compiled/BEGI_EXO.or2.rds")
 rm(list = ls())
 BEGI_EXO.or2 = readRDS("EXO_compiled/BEGI_EXO.or2.rds")
 
+#### Plot to check ####
 
-
-
-#### Get service times and sunrise/sunset for plotting ####
+#### Get service times and sunrise/sunset for plotting
 
 # read in file and filter to EXO1 removal and deployments
 service = readxl::read_excel("googledrive/sensor_event_log.xlsx")
@@ -794,7 +797,7 @@ service.VDOS = servicetimes$datetimeMT[servicetimes$observation=="removed" & ser
 service.SLOC = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="SLOC"]
 service.SLOW = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="SLOW"]
 
-#### save service date/times to repo ####
+# save service date/times to repo
 
 write.csv(service.VDOW, "EXO_compiled/service.VDOW.csv")
 write.csv(service.VDOS, "EXO_compiled/service.VDOS.csv")
@@ -812,7 +815,6 @@ pm.pts = suntimes$sunset[-(nrow(suntimes))]
 am.pts = suntimes$sunrise[-1]
 
 
-#### Plot to check ####
 
 # custom plotting function of all data
 plot_site_diagnostics <- function(data, service_times, file_path,
@@ -945,7 +947,7 @@ plot_site_diagnostics(BEGI_EXO.or2[["VDOW"]], service.VDOW,
                       ylim_battery = c(-.2, 4), battery_low_line = TRUE)
 
 
-#### Clear all files from the googledrive folder to end fresh ####
+#### Clear all Google Drive files from local folder to end fresh ####
 
 # NOTE: DO NOT push raw EXO1 files to the github repo! there are too many to push all at once. THe purpose of the google drive is to handle all these files, whereas github handles the script :)
 
