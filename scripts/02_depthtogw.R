@@ -3,7 +3,7 @@
 # The purpose of this script is to use manually measured groundwater depth data with pressure transducer data (HOBO U20s, hereafter "PT data") to create a continuous (every 15 min) dataset of depth to gw in the 4 wells used for the BEGI 2023-2024 study.
 
 # PT data is first corrected to account for any jumps in data that occurred as a result of the cable length changing.
-# PT data is then compared to manual readings of depth to groundwater (DTW) from sounding wells with a water level reader or "beeper". The slope and intercept of the relationship is then used to convert PT data to DTW.
+# PT data is then compared to manual readings of depth to groundwater (DTW) from sounding wells with a water level reader (aka "beeper"). The slope and intercept of the relationship is then used to convert PT data to DTW.
 
 # In-water PT data was compensated for atmospheric pressure using the HOBO software wizard. Atmospheric pressure was recorded on site by a HOBO PT installed at the top of a well casing (out of water) for the dates/times 2023-10-20 12:30:00 to 2024-06-24 11:15:00. However, after 2024-06-24 11:15:00, the storage on the on-site in-air PT was exceeded and no more atmospheric pressure data is available on-site. Instead, we downloaded sea level pressure data from the Albuquerque airport (KABQ) from https://www.weather.gov/wrh/timeseries?site=KABQ&hourly=true, which is ~ 10 km northeast and 84 m in elevation higher than the site. We corrected this data from sea level to local atmospheric pressure using the equation [where the BP readings MUST be in mm Hg) is: True BP = [Corrected BP] – [2.5 * (Local Altitude in ft above sea level/100)]. Note that Inches of Hg x 25.4 = mm Hg]. We elected to use the airport data to compensate the entire in-water PT dataset to ensure consistency of the approach. In-water PT data was compensated using "option 1" in the HOBO software wizard, which compensates for the data only where the two datasets overlap, interpolating between points that do not exactly align. 
 
@@ -43,6 +43,7 @@ if (length(googledrive_files) > 0) {
 #### Load and wrangle PT data from Google Drive ####
 
 ls_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/10Wp8MgiJdrgCNssj4Ig34y5hMM_EfRE3")
+# authenticate 
 2
 # download for googledrive folder
 for (i in seq_len(nrow(ls_tibble))) {
@@ -66,15 +67,15 @@ for(i in siteIDz){
                          fileEncoding="utf-8")
 }
 
-# it looks like there was one instance of the datetime format getting changed to GMT0700 when the data was downloaded. All other data is in GMT0600. The GMT/UTC minus 6 hours offset is used in the Mountain Time Zone when operating in Daylight Saving Time. I will convert this instance of GMT0700 to GMT0600 so that everything is in Mountain Daylight Savings Time, and then convert it all to R's "US/Mountain", which accounts for the time change. 
-BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.06.00"]] = as.POSIXct(BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.07.00"]], 
-                                                               format = "%m/%d/%y %I:%M:%S %p",
-                                                               tz="Etc/GMT+7")
-BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.06.00"]] = BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.06.00"]]+(60*60)
+# it looks like there was one instance of the datetime format getting changed to GMT0700 when the data was downloaded. All other data in VDOW and other sites is in GMT0600. The GMT/UTC minus 6 hours offset is used in the Mountain Time Zone when operating in Daylight Saving Time. I will convert this instance of GMT0700 to GMT0600 so that everything is in Mountain Daylight Savings Time, and then convert it all to R's "US/Mountain", which accounts for the time change. 
+BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.06.00"]] <- as.POSIXct(
+  BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.07.00"]],
+  format = "%m/%d/%y %I:%M:%S %p",
+  tz = "Etc/GMT+6"
+)
+BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.07.00"]] <- NULL
 
-BEGI_PTz[["VDOW"]][[2]][["Date.Time..GMT.07.00"]] =NULL
-
-# it looks like the time zone updated whenever data was downloaded, so some data is in GMT0600 and some is in GMT0700 as indicated by the column header. I will convert it all to R's "US/Mountain" and hopefully that will catch the time change
+# convert it all to R's "US/Mountain"
 for(i in siteIDz){
   # convert to POIXct and set timezone
   BEGI_PTz[[i]][[1]]$Date.Time..GMT.06.00<-as.POSIXct( BEGI_PTz[[i]][[1]]$Date.Time..GMT.06.00, 
@@ -147,6 +148,8 @@ for(i in siteIDz){
   BEGI_PTz[[i]] = BEGI_PTz[[i]][!duplicated(BEGI_PTz[[i]]$datetimeMT),]
 }
 sum(duplicated(BEGI_PTz[["VDOW"]]$datetimeMT))
+
+#
 #### complete timeseries with all possible time stamps ####
 
 BEGI_PTz.ts = BEGI_PTz
@@ -176,183 +179,210 @@ for(i in siteIDz){
 }
 
 # plot to check
-ggplot(data=BEGI_PTz.ts2[["VDOW"]], aes(datetimeMT, (SensorDepth_m*-1)))+
+ggplot(data=BEGI_PTz.ts2[["VDOW"]], aes(datetimeMT, (SensorDepth_m)))+
   geom_line()+
   geom_point()
-ggplot(data=BEGI_PTz.ts2[["VDOS"]], aes(datetimeMT, (SensorDepth_m*-1)))+
+ggplot(data=BEGI_PTz.ts2[["VDOS"]], aes(datetimeMT, (SensorDepth_m)))+
   geom_line()+
   geom_point()
-ggplot(data=BEGI_PTz.ts2[["SLOW"]], aes(datetimeMT, (SensorDepth_m*-1)))+
+ggplot(data=BEGI_PTz.ts2[["SLOW"]], aes(datetimeMT, (SensorDepth_m)))+
   geom_line()+
   geom_point()
-ggplot(data=BEGI_PTz.ts2[["SLOC"]], aes(datetimeMT, (SensorDepth_m*-1)))+
+ggplot(data=BEGI_PTz.ts2[["SLOC"]], aes(datetimeMT, (SensorDepth_m)))+
   geom_line()+
   geom_point()
 
 #### remove obvious outliers ####
 
-# get service date/times from googledrive
-service_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1quyArAKgI5qn_lz4n1vjnoMrM0XJWdDl")
-2
-googledrive::drive_download(as_id(service_tibble$id[service_tibble$name=="sensor_event_log.xlsx"]), overwrite = TRUE,path="googledrive/sensor_event_log.xlsx")
-# read in file and filter to EXO1 removal and deployments
-service = readxl::read_excel("googledrive/sensor_event_log.xlsx")
-service = service[service$model=="EXO1",]
-service = service[service$observation=="removed" | service$observation=="deployed",]
-# format date and time
-service$datetime = paste(service$date,  service$time, sep = " ")
-# convert to POIXct and set timezone
-service$datetimeMT<-as.POSIXct(service$datetime, 
-                               format = "%Y-%m-%d %H:%M",
-                               tz="US/Mountain")
-service$date = as.Date(service$date)
-service$...9=NULL
-service
-service.VDOS = service$datetimeMT[service$location=="VDOS"]
-service.VDOW = service$datetimeMT[service$location=="VDOW"]
-service.SLOW = service$datetimeMT[service$location=="SLOW"]
-service.SLOC = service$datetimeMT[service$location=="SLOC"]
+# get service date/times
+service.VDOS = as.POSIXct(read.csv("EXO_compiled/service.VDOS.csv")[,2],tz="US/Mountain")
+service.VDOW = as.POSIXct(read.csv("EXO_compiled/service.VDOW.csv")[,2],tz="US/Mountain")
+service.SLOW = as.POSIXct(read.csv("EXO_compiled/service.SLOW.csv")[,2],tz="US/Mountain")
+service.SLOC = as.POSIXct(read.csv("EXO_compiled/service.SLOC.csv")[,2],tz="US/Mountain")
 
+# This function flags and removes "out of water" servicing artifacts: sudden jumps in SensorDepth_m that happen when the PT is physically removed from (or redeployed into) the well. Detection is confined to a buffer window around each known service event, so genuine rapid natural water-level changes elsewhere in the record aren't mistakenly flagged. Within that window, each point is compared to the rolling median of its neighbors rather than a rolling mean, since a median isn't dragged off by the jump itself the way a mean would be - it stays anchored to the "normal" surrounding readings.
+
+flag_service_outliers <- function(data,
+                                  datetime_col          = "datetimeMT",
+                                  value_col             = "SensorDepth_m_C",
+                                  source_col            = "SensorDepth_m",
+                                  service_times,
+                                  buffer_hours          = 12,
+                                  roll_width            = 9,
+                                  jump_threshold        = 0.05,
+                                  global_jump_threshold = 0.15) {
+  
+  if (is.null(data[[value_col]])) {
+    data[[value_col]] <- data[[source_col]]
+  }
+  
+  dt  <- data[[datetime_col]]
+  val <- data[[value_col]]
+  
+  in_service_window <- rep(FALSE, length(dt))
+  for (st in service_times) {
+    in_service_window <- in_service_window |
+      (dt >= st - buffer_hours * 3600 & dt <= st + buffer_hours * 3600)
+  }
+  
+  # trailing rolling median, excluding the point itself - each reading is compared only to what came BEFORE it
+  roll_med_incl_self <- zoo::rollapply(val, width = roll_width, FUN = median,
+                                       na.rm = TRUE, fill = NA, align = "right")
+  roll_med <- c(NA, head(roll_med_incl_self, -1))  # shift by 1 so the window excludes the current point
+  
+  jump <- abs(val - roll_med)
+  
+  is_outlier_service <- in_service_window & !is.na(val) & !is.na(roll_med) &
+    jump > jump_threshold
+  
+  is_outlier_global <- !in_service_window & !is.na(val) & !is.na(roll_med) &
+    jump > global_jump_threshold
+  
+  is_outlier <- is_outlier_service | is_outlier_global
+  
+  data[[paste0(value_col, "_flagged")]] <- is_outlier
+  data[[paste0(value_col, "_flag_reason")]] <- ifelse(
+    is_outlier_service, "service_window",
+    ifelse(is_outlier_global, "global_jump", NA)
+  )
+  data[[value_col]][is_outlier] <- NA
+  data
+}
+
+
+# apply outlier removal function to each site and plot to check
 
 # VDOW
 BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C = BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m
-# fcn to remove with identify()
-outlierremover <- function(data)
-{
-  date <- data$datetimeMT
-  plot(date, data$SensorDepth_m_C)
-  abline(v=service.VDOW, col="red")
-  outliers <- identify(date, data$SensorDepth_m)
-  x1 <- data$datetimeMT[outliers]
-  return(x1)
-}
-# remove identified points
-v1 = outlierremover(BEGI_PTz.ts2[["VDOW"]])
-BEGI_PTz.ts2[["VDOW"]][(BEGI_PTz.ts2[["VDOW"]]$datetimeMT %in% v1),
-                       "SensorDepth_m_C"] <- NA 
-# for getting a range of dates removed
-BEGI_PTz.ts2[["VDOW"]][(BEGI_PTz.ts2[["VDOW"]]$datetimeMT>min(v1) & BEGI_PTz.ts2[["VDOW"]]$datetimeMT<max(v1)),
-                       "SensorDepth_m_C"] <- NA 
-# plot
-plot(ymd_hms(BEGI_PTz.ts2[["VDOW"]]$datetimeMT),(BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C),pch=20)
-# repeat "remove identified points" as necessary
-
+# remove the first 9 real readings of VDOW's record (too early for the rolling-window method to have a baseline to compare against)
+first_9 <- which(!is.na(BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C))[1:9]
+BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C[first_9] <- NA
+# apply rolling function
+BEGI_PTz.ts2[["VDOW"]] <- flag_service_outliers(BEGI_PTz.ts2[["VDOW"]], service_times = service.VDOW)
+# plot to check
+dt      <- BEGI_PTz.ts2[["VDOW"]]$datetimeMT
+cleaned <- BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C
+raw     <- BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m
+flagged <- BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C_flagged
+reason  <- BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C_flag_reason
+n_service <- sum(flagged & reason == "service_window", na.rm = TRUE)
+n_global  <- sum(flagged & reason == "global_jump", na.rm = TRUE)
+plot(dt, cleaned, type = "l", col = "black",
+     xlab = "", ylab = "SensorDepth_m_C",
+     main = paste0("VDOW  (removed: ", n_service, " service-window, ", n_global, " global)"))
+points(dt[flagged & reason == "service_window"], raw[flagged & reason == "service_window"],
+       col = "red", pch = 19, cex = 0.8)
+points(dt[flagged & reason == "global_jump"], raw[flagged & reason == "global_jump"],
+       col = "orange", pch = 17, cex = 0.8)
+abline(v = as.POSIXct(service.VDOW), col = "grey70", lty = 2)
+legend("topright",
+       legend = c("cleaned data", "removed: service window", "removed: global jump", "logged service event"),
+       col = c("black", "red", "orange", "grey70"),
+       lty = c(1, NA, NA, 2), pch = c(NA, 19, 17, NA),
+       bty = "n", cex = 0.75)
 
 # VDOS
 BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C = BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m
-# fcn to remove with identify()
-outlierremover <- function(data)
-{
-  date <- data$datetimeMT
-  plot(date, data$SensorDepth_m_C)
-  abline(v=service.VDOS, col="red")
-  outliers <- identify(date, data$SensorDepth_m)
-  x1 <- data$datetimeMT[outliers]
-  return(x1)
-}
-# remove identified points
-v1 = outlierremover(BEGI_PTz.ts2[["VDOS"]])
-BEGI_PTz.ts2[["VDOS"]][(BEGI_PTz.ts2[["VDOS"]]$datetimeMT %in% v1),
-                       "SensorDepth_m_C"] <- NA 
-# # for getting a range of dates removed. only select points within a range when using this!!
-# BEGI_PTz.ts2[["VDOS"]][(BEGI_PTz.ts2[["VDOS"]]$datetimeMT>min(v1) & BEGI_PTz.ts2[["VDOS"]]$datetimeMT<max(v1)),
-#                        "SensorDepth_m_C"] <- NA 
-# plot
-plot(ymd_hms(BEGI_PTz.ts2[["VDOS"]]$datetimeMT),(BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C),pch=20)
-# repeat "remove identified points" as necessary
+# remove the first 31 real readings of VDOS's record (too early for the rolling-window method to have a baseline to compare against)
+first_31 <- which(!is.na(BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C))[1:31]
+BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C[first_31] <- NA
+# apply rolling function
+BEGI_PTz.ts2[["VDOS"]] <- flag_service_outliers(BEGI_PTz.ts2[["VDOS"]], service_times = service.VDOS)
+# plot to check
+dt      <- BEGI_PTz.ts2[["VDOS"]]$datetimeMT
+cleaned <- BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C
+raw     <- BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m
+flagged <- BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C_flagged
+reason  <- BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C_flag_reason
+n_service <- sum(flagged & reason == "service_window", na.rm = TRUE)
+n_global  <- sum(flagged & reason == "global_jump", na.rm = TRUE)
+plot(dt, cleaned, type = "l", col = "black",
+     xlab = "", ylab = "SensorDepth_m_C",
+     main = paste0("VDOS  (removed: ", n_service, " service-window, ", n_global, " global)"))
+points(dt[flagged & reason == "service_window"], raw[flagged & reason == "service_window"],
+       col = "red", pch = 19, cex = 0.8)
+points(dt[flagged & reason == "global_jump"], raw[flagged & reason == "global_jump"],
+       col = "orange", pch = 17, cex = 0.8)
+abline(v = as.POSIXct(service.VDOS), col = "grey70", lty = 2)
+legend("topright",
+       legend = c("cleaned data", "removed: service window", "removed: global jump", "logged service event"),
+       col = c("black", "red", "orange", "grey70"),
+       lty = c(1, NA, NA, 2), pch = c(NA, 19, 17, NA),
+       bty = "n", cex = 0.75)
 
 
 # SLOW
 BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C = BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m
-# fcn to remove with identify()
-outlierremover <- function(data)
-{
-  date <- data$datetimeMT
-  plot(date, data$SensorDepth_m_C)
-  abline(v=service.SLOW, col="red")
-  outliers <- identify(date, data$SensorDepth_m)
-  x1 <- data$datetimeMT[outliers]
-  return(x1)
-}
-# remove identified points
-v1 = outlierremover(BEGI_PTz.ts2[["SLOW"]])
-BEGI_PTz.ts2[["SLOW"]][(BEGI_PTz.ts2[["SLOW"]]$datetimeMT %in% v1),
-                       "SensorDepth_m_C"] <- NA 
-# # for getting a range of dates removed. only select points within a range when using this!!
-# BEGI_PTz.ts2[["SLOW"]][(BEGI_PTz.ts2[["SLOW"]]$datetimeMT>min(v1) & BEGI_PTz.ts2[["SLOW"]]$datetimeMT<max(v1)),
-#                        "SensorDepth_m_C"] <- NA
-# plot
-plot(ymd_hms(BEGI_PTz.ts2[["SLOW"]]$datetimeMT),(BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C),pch=20)
-# repeat "remove identified points" as necessary
+# remove the first 39 real readings of SLOW's record (too early for the rolling-window method to have a baseline to compare against)
+first_39 <- which(!is.na(BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C))[1:39]
+BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C[first_39] <- NA
+# apply rolling function
+BEGI_PTz.ts2[["SLOW"]] <- flag_service_outliers(BEGI_PTz.ts2[["SLOW"]], service_times = service.SLOW)
+# plot to check
+dt      <- BEGI_PTz.ts2[["SLOW"]]$datetimeMT
+cleaned <- BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C
+raw     <- BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m
+flagged <- BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C_flagged
+reason  <- BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C_flag_reason
+n_service <- sum(flagged & reason == "service_window", na.rm = TRUE)
+n_global  <- sum(flagged & reason == "global_jump", na.rm = TRUE)
+plot(dt, cleaned, type = "l", col = "black",
+     xlab = "", ylab = "SensorDepth_m_C",
+     main = paste0("SLOW  (removed: ", n_service, " service-window, ", n_global, " global)"))
+points(dt[flagged & reason == "service_window"], raw[flagged & reason == "service_window"],
+       col = "red", pch = 19, cex = 0.8)
+points(dt[flagged & reason == "global_jump"], raw[flagged & reason == "global_jump"],
+       col = "orange", pch = 17, cex = 0.8)
+abline(v = as.POSIXct(service.SLOW), col = "grey70", lty = 2)
+legend("topright",
+       legend = c("cleaned data", "removed: service window", "removed: global jump", "logged service event"),
+       col = c("black", "red", "orange", "grey70"),
+       lty = c(1, NA, NA, 2), pch = c(NA, 19, 17, NA),
+       bty = "n", cex = 0.75)
 
 
 # SLOC
 BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C = BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m
-# fcn to remove with identify()
-outlierremover <- function(data)
-{
-  date <- data$datetimeMT
-  plot(date, data$SensorDepth_m_C)
-  abline(v=service.SLOC, col="red")
-  outliers <- identify(date, data$SensorDepth_m)
-  x1 <- data$datetimeMT[outliers]
-  return(x1)
-}
-# remove identified points
-v1 = outlierremover(BEGI_PTz.ts2[["SLOC"]])
-BEGI_PTz.ts2[["SLOC"]][(BEGI_PTz.ts2[["SLOC"]]$datetimeMT %in% v1),
-                       "SensorDepth_m_C"] <- NA 
-# # for getting a range of dates removed. only select points within a range when using this!!
-# BEGI_PTz.ts2[["SLOC"]][(BEGI_PTz.ts2[["SLOC"]]$datetimeMT>min(v1) & BEGI_PTz.ts2[["SLOC"]]$datetimeMT<max(v1)),
-#                        "SensorDepth_m_C"] <- NA
-# plot
-plot(ymd_hms(BEGI_PTz.ts2[["SLOC"]]$datetimeMT),(BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C),pch=20)
-# repeat "remove identified points" as necessary
-
-
+# remove the first 37 real readings of SLOC's record (too early for the rolling-window method to have a baseline to compare against)
+first_37 <- which(!is.na(BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C))[1:37]
+BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C[first_37] <- NA
+# apply rolling function
+BEGI_PTz.ts2[["SLOC"]] <- flag_service_outliers(BEGI_PTz.ts2[["SLOC"]], service_times = service.SLOC)
 # plot to check
-ggplot(data=BEGI_PTz.ts2[["VDOW"]], aes(datetimeMT, (SensorDepth_m_C*-1)))+
-  geom_line()+
-  geom_point()
-ggplot(data=BEGI_PTz.ts2[["VDOS"]], aes(datetimeMT, (SensorDepth_m_C*-1)))+
-  geom_line()+
-  geom_point()
-ggplot(data=BEGI_PTz.ts2[["SLOW"]], aes(datetimeMT, (SensorDepth_m_C*-1)))+
-  geom_line()+
-  geom_point()
-ggplot(data=BEGI_PTz.ts2[["SLOC"]], aes(datetimeMT, (SensorDepth_m*-1)))+
-  geom_line()+
-  geom_point()
+dt      <- BEGI_PTz.ts2[["SLOC"]]$datetimeMT
+cleaned <- BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C
+raw     <- BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m
+flagged <- BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C_flagged
+reason  <- BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C_flag_reason
+n_service <- sum(flagged & reason == "service_window", na.rm = TRUE)
+n_global  <- sum(flagged & reason == "global_jump", na.rm = TRUE)
+plot(dt, cleaned, type = "l", col = "black",
+     xlab = "", ylab = "SensorDepth_m_C",
+     main = paste0("SLOC  (removed: ", n_service, " service-window, ", n_global, " global)"))
+points(dt[flagged & reason == "service_window"], raw[flagged & reason == "service_window"],
+       col = "red", pch = 19, cex = 0.8)
+points(dt[flagged & reason == "global_jump"], raw[flagged & reason == "global_jump"],
+       col = "orange", pch = 17, cex = 0.8)
+abline(v = as.POSIXct(service.SLOC), col = "grey70", lty = 2)
+legend("topright",
+       legend = c("cleaned data", "removed: service window", "removed: global jump", "logged service event"),
+       col = c("black", "red", "orange", "grey70"),
+       lty = c(1, NA, NA, 2), pch = c(NA, 19, 17, NA),
+       bty = "n", cex = 0.75)
 
-# # fix the removal of timestamps, sensorSN, and uncorrected SensorDepth_m. I should modify the outlier removal script to prevent the introduction of NAs into all columns in future 
-# # join to clean time stamps
-# BEGI_PTz.ts3 = list()
-# siteIDz = c("VDOW", "VDOS", "SLOW", "SLOC")
-# for(i in siteIDz){
-#   BEGI_PTz.ts3[[i]] <- left_join(time, BEGI_PTz.ts2[[i]], by="datetimeMT", keep=FALSE)
-# }
-# BEGI_PTz.Conly = list()
-# for(i in siteIDz){
-#   BEGI_PTz.Conly[[i]] = BEGI_PTz.ts3[[i]]
-#   BEGI_PTz.Conly[[i]]$sensorSN = NULL
-#   BEGI_PTz.Conly[[i]]$SensorDepth_m = NULL
-# }
-# BEGI_PTz.noC = list()
-# for(i in siteIDz){
-#   BEGI_PTz.noC[[i]] = BEGI_PTz.ts[[i]]
-# }
-# BEGI_PTz.ts4 = list()
-# for(i in siteIDz){
-#   BEGI_PTz.ts4[[i]] <- left_join(BEGI_PTz.Conly[[i]], BEGI_PTz.noC[[i]], by="datetimeMT")
-# }
 
+
+
+
+
+#
 
 #### save and re-add cleaned sensor depth data ####
 
 
-saveRDS(BEGI_PTz.ts2, "data_clean/DTW_compiled/BEGI_PTz.ts2.rds")
+saveRDS(BEGI_PTz.ts2, "DTW_compiled/BEGI_PTz.ts2.rds")
 rm(list = ls())
-BEGI_PTz.ts4 = readRDS("data_clean/DTW_compiled/BEGI_PTz.ts2.rds")
+BEGI_PTz.ts4 = readRDS("DTW_compiled/BEGI_PTz.ts2.rds")
 
 #### correct baseline jumps ####
 
@@ -383,20 +413,20 @@ service$...9=NULL
 
 ### plot data in chunks to find baseline jumps
 ## VDOW ##
-temp =  BEGI_PTz.ts4[["VDOW"]][BEGI_PTz.ts4[["VDOW"]]$datetimeMT>=as.POSIXct("2023-09-15 OO:OO:OO") &
-                                 BEGI_PTz.ts4[["VDOW"]]$datetimeMT<as.POSIXct("2023-11-01 OO:OO:OO"),]
+temp =  BEGI_PTz.ts4[["VDOW"]][BEGI_PTz.ts4[["VDOW"]]$datetimeMT>=as.POSIXct("2023-09-15 00:00:00") &
+                                 BEGI_PTz.ts4[["VDOW"]]$datetimeMT<as.POSIXct("2023-11-01 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o")
 # no jumps in VDOW
 BEGI_PTz.ts5[["VDOW"]]$SensorDepth_m_CBC = BEGI_PTz.ts5[["VDOW"]]$SensorDepth_m_C
 
 ## VDOS ##
 service.VDOS = service$datetimeMT[service$location=="VDOS"]
-temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2024-10-01 OO:OO:OO") &
-                                 BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2024-11-01 OO:OO:OO"),]
+temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2024-10-01 00:00:00") &
+                                 BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2024-11-01 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o");abline(v=as.POSIXct(service.VDOS), col="red")
 # correction 1
-temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-21 OO:OO:OO") &
-                                 BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2023-11-29 OO:OO:OO"),]
+temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-21 00:00:00") &
+                                 BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2023-11-29 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o")
 abline(v=as.POSIXct(service.VDOS), col="red")
 BEGI_PTz.ts5[["VDOS"]]$SensorDepth_m_CBC = BEGI_PTz.ts5[["VDOS"]]$SensorDepth_m_C
@@ -404,8 +434,8 @@ BEGI_PTz.ts5[["VDOS"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.P
                                            BEGI_PTz.ts5[["VDOS"]]$datetimeMT<=as.POSIXct("2023-11-27 09:45:00")] = 
   BEGI_PTz.ts5[["VDOS"]]$SensorDepth_m_C[BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-22 14:30:00") &
                                            BEGI_PTz.ts5[["VDOS"]]$datetimeMT<=as.POSIXct("2023-11-27 09:45:00")] - (1.930-1.898)
-temp =  BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-21 OO:OO:OO") &
-                                 BEGI_PTz.ts5[["VDOS"]]$datetimeMT<as.POSIXct("2023-11-29 OO:OO:OO"),]
+temp =  BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-21 00:00:00") &
+                                 BEGI_PTz.ts5[["VDOS"]]$datetimeMT<as.POSIXct("2023-11-29 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o")
 abline(v=as.POSIXct(service.VDOS), col="red")
 # end correction 1
@@ -426,8 +456,8 @@ abline(v=as.POSIXct(service.VDOS), col="red")
 
 ## SLOW ##
 service.SLOW = service$datetimeMT[service$location=="SLOW"]
-temp =  BEGI_PTz.ts4[["SLOW"]][BEGI_PTz.ts4[["SLOW"]]$datetimeMT>=as.POSIXct("2023-12-01 OO:OO:OO") &
-                                 BEGI_PTz.ts4[["SLOW"]]$datetimeMT<as.POSIXct("2024-02-15 OO:OO:OO"),]
+temp =  BEGI_PTz.ts4[["SLOW"]][BEGI_PTz.ts4[["SLOW"]]$datetimeMT>=as.POSIXct("2023-12-01 00:00:00") &
+                                 BEGI_PTz.ts4[["SLOW"]]$datetimeMT<as.POSIXct("2024-02-15 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o");abline(v=as.POSIXct(service.SLOW), col="red")
 # correction 1 & 2
 temp =  BEGI_PTz.ts4[["SLOW"]][BEGI_PTz.ts4[["SLOW"]]$datetimeMT>=as.POSIXct("2024-01-25 00:00:00") &
@@ -458,32 +488,32 @@ plot(temp$datetimeMT, temp$SensorDepth_m_C*-1, type="o");abline(v=as.POSIXct(ser
 ## correction 1-4
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC = BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_C
 #1
-jump1 = as.POSIXct("2023-10-06 10:45:00")
-endjump1 = as.POSIXct("2023-10-13 10:15:00")
+jump1 = as.POSIXct("2023-10-06 10:45:00", tz="US/Mountain")
+endjump1 = as.POSIXct("2023-10-13 10:15:00", tz="US/Mountain")
 dif1 = 0.911-0.882
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump1 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump1] = 
   BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_C[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump1 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump1] + dif1
 #2
-jump2 = as.POSIXct("2023-10-13 11:00:00")
-endjump2 = as.POSIXct("2023-10-16 14:15:00")
+jump2 = as.POSIXct("2023-10-13 11:00:00", tz="US/Mountain")
+endjump2 = as.POSIXct("2023-10-16 14:15:00", tz="US/Mountain")
 dif2 = (0.915-0.853)+dif1
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump2 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump2] = 
   BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_C[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump2 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump2] + dif2
 #3
-jump3 = as.POSIXct("2023-10-16 14:30:00")
-endjump3 = as.POSIXct("2023-10-20 10:15:00")
+jump3 = as.POSIXct("2023-10-16 14:30:00", tz="US/Mountain")
+endjump3 = as.POSIXct("2023-10-20 10:15:00", tz="US/Mountain")
 dif3 = (0.880-0.739)+dif2
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump3 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump3] = 
   BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_C[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump3 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump3] + dif3
 #4
-jump4 = as.POSIXct("2023-10-27 11:15:00")
-endjump4 = as.POSIXct("2023-11-03 10:30:00")
+jump4 = as.POSIXct("2023-10-27 11:15:00", tz="US/Mountain")
+endjump4 = as.POSIXct("2023-11-03 10:30:00", tz="US/Mountain")
 dif4 = (0.989-0.940)
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump4 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump4] =
@@ -496,8 +526,8 @@ plot(temp$datetimeMT, temp$SensorDepth_m_C, col="red")
 points(temp$datetimeMT, temp$SensorDepth_m_CBC, type="b"); abline(v=as.POSIXct(service.SLOC), col="red")
 
 ## correction 5
-jump5 = as.POSIXct("2024-01-19 16:30:00")
-endjump5 = as.POSIXct("2024-01-25 13:00:00")
+jump5 = as.POSIXct("2024-01-19 16:30:00", tz="US/Mountain")
+endjump5 = as.POSIXct("2024-01-25 13:00:00", tz="US/Mountain")
 dif5 = 0.828-0.711
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump5 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump5] = 
@@ -509,8 +539,8 @@ temp =  BEGI_PTz.ts5[["SLOC"]][BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=as.POSIXct("20
 plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o"); abline(v=as.POSIXct(service.SLOC), col="red")
 
 ## correction 6
-jump6 = as.POSIXct("2024-01-25 13:30:00")
-endjump6 = as.POSIXct("2024-02-06 10:15:00")
+jump6 = as.POSIXct("2024-01-25 13:30:00", tz="US/Mountain")
+endjump6 = as.POSIXct("2024-02-06 10:15:00", tz="US/Mountain")
 dif6 = 0.860-0.830
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump6 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump6] = 
@@ -522,8 +552,8 @@ temp =  BEGI_PTz.ts5[["SLOC"]][BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=as.POSIXct("20
 plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o"); abline(v=as.POSIXct(service.SLOC), col="red")
 
 ## correction 7
-jump7 = as.POSIXct("2024-04-17 09:15:00")
-endjump7 = as.POSIXct("2024-04-30 10:15:00")
+jump7 = as.POSIXct("2024-04-17 09:15:00", tz="US/Mountain")
+endjump7 = as.POSIXct("2024-04-30 10:15:00", tz="US/Mountain")
 dif7 = 0.963-0.746
 BEGI_PTz.ts5[["SLOC"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOC"]]$datetimeMT>=jump7 &
                                            BEGI_PTz.ts5[["SLOC"]]$datetimeMT<=endjump7] = 
@@ -638,9 +668,9 @@ ggplot(data=BEGI_PTz.ts6[["SLOC"]], aes(datetimeMT, (SensorDepth_m_CBC_sm*-1)))+
 #### save and re-add cleaned sensor depth data ####
 
 
-saveRDS(BEGI_PTz.ts6, "data_clean/DTW_compiled/BEGI_PTz.rds")
+saveRDS(BEGI_PTz.ts6, "DTW_compiled/BEGI_PTz.rds")
 rm(list = ls())
-BEGI_PTz = readRDS("data_clean/DTW_compiled/BEGI_PTz.rds")
+BEGI_PTz = readRDS("DTW_compiled/BEGI_PTz.rds")
 
 #
 #### load in manual DTW dataset ####
@@ -767,11 +797,11 @@ ggplot(data=BEGI_PTz[["SLOC"]])+ geom_line(aes(datetimeMT, DTW_m*-1))+ylim(c(-3,
 #### save finalized DTW data ####
 
 # save as list
-saveRDS(BEGI_PTz, "data_clean/DTW_compiled/BEGI_PTz_DTW.rds")
+saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
 
 # save as dataframe
 BEGI_PT_DTW_all = rbind(BEGI_PTz[["VDOW"]],BEGI_PTz[["VDOS"]],BEGI_PTz[["SLOW"]],BEGI_PTz[["SLOC"]])
-saveRDS(BEGI_PT_DTW_all, "data_clean/DTW_compiled/BEGI_PT_DTW_all.rds")
+saveRDS(BEGI_PT_DTW_all, "DTW_compiled/BEGI_PT_DTW_all.rds")
 
 #### add discharge data from Rio Grande ####
 
@@ -856,17 +886,17 @@ ggplot(BEGI_PT_DTW_all, aes(datetimeMT, DTW_m, color=wellID)) +
 #### save data with Rio Grande discharge included ####
 
 # save as list
-saveRDS(BEGI_PTz, "data_clean/DTW_compiled/BEGI_PTz_DTW.rds")
+saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
 
 # save as dataframe
-saveRDS(BEGI_PT_DTW_all, "data_clean/DTW_compiled/BEGI_PT_DTW_all.rds")
+saveRDS(BEGI_PT_DTW_all, "DTW_compiled/BEGI_PT_DTW_all.rds")
 
 #### re-add data and fill gap in VDOW ####
 
 # there is a large datgap in VDOW from 2023-10-20 08:15:00 to 2024-02-06 10:30:00. This well is very physically close to VDOS and the data looks extremely similar other than a small difference in depth below the surface. The R-sq of their linear relationship is 0.9891. I therefore think it's appropriate to use VDOS to predict VDOW and fill the gap. 
 
-DTW = readRDS("data_clean/DTW_compiled/BEGI_PTz_DTW.rds")
-DTW_df = readRDS("data_clean/DTW_compiled/BEGI_PT_DTW_all.rds")
+DTW = readRDS("DTW_compiled/BEGI_PTz_DTW.rds")
+DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
 
 # plot VDO wells
 ggplot(DTW_df[DTW_df$siteID=="VDO",], aes(datetimeMT, DTW_m*-1, color=wellID)) +
@@ -929,10 +959,10 @@ DTW[["VDOW"]]$DTW_m = DTW_df$DTW_m[DTW_df$wellID=="VDOW"]
 #### save data with VDOW gap filled ####
 
 # save as list
-saveRDS(DTW, "data_clean/DTW_compiled/BEGI_PTz_DTW.rds")
+saveRDS(DTW, "DTW_compiled/BEGI_PTz_DTW.rds")
 
 # save as dataframe
-saveRDS(DTW_df, "data_clean/DTW_compiled/BEGI_PT_DTW_all.rds")
+saveRDS(DTW_df, "DTW_compiled/BEGI_PT_DTW_all.rds")
 
 #
 #### plot all final DTW data together ####
@@ -973,33 +1003,3 @@ DTW =
 Q_DTW = Q+ DTW+ plot_layout(ncol = 1, widths = c(1,.84), heights=c(1,2))
 ggsave("plots/RGdischarge_allwellsDTW.png", Q_DTW, width=11,height=8, units="in")
 
-#### plot 48 hr periods ####
-
-# I noticed in the 16_tscluster.R analysis that a lot of 48 hr periods have more than 2 peaks/troughs in depth to water, which is unexpected for an ET signal. I am checking this here to see if it is "real" or not.
-
-# load dtw data
-DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
-
-
-# load DO event data
-dat = readRDS("DTW_compiled/event_dtw.rds")
-dat[,193] # these are the start of each DO event
-# name events and make names into row names
-dat$ename = paste("e", c(1:59), sep="")
-rownames(dat) = dat$ename
-# save date/time stamps of events separately 
-times = dat[,193:194]
-dat[,193:194] = NULL
-# raw data
-matplot((t(dat))[,6], type = "l")
-# the first >2 peak event is in row 6
-times[6,]
-
-SLOCe6 = DTW_df[DTW_df$wellID=="SLOC" &
-                  DTW_df$datetimeMT <= as.POSIXct("2023-11-17 20:15:00", tz="US/Mountain")&
-                  DTW_df$datetimeMT > as.POSIXct("2023-11-15 20:15:00", tz="US/Mountain"),]
-
-par(mfrow=c(2,1), mar=c(2,2,2,2))
-plot(SLOCe6$datetimeMT, SLOCe6$SensorDepth_m_C, main="PT raw-ish sensor depth")
-plot(SLOCe6$datetimeMT, SLOCe6$DTW_m, main="Depth to water")
-plot(SLOCe6$datetimeMT, SLOCe6$Q_Lsec, main="Rio Grande Q")
