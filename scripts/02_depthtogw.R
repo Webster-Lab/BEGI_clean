@@ -7,6 +7,13 @@
 
 # In-water PT data was compensated for atmospheric pressure using the HOBO software wizard. Atmospheric pressure was recorded on site by a HOBO PT installed at the top of a well casing (out of water) for the dates/times 2023-10-20 12:30:00 to 2024-06-24 11:15:00. However, after 2024-06-24 11:15:00, the storage on the on-site in-air PT was exceeded and no more atmospheric pressure data is available on-site. Instead, we downloaded sea level pressure data from the Albuquerque airport (KABQ) from https://www.weather.gov/wrh/timeseries?site=KABQ&hourly=true, which is ~ 10 km northeast and 84 m in elevation higher than the site. We corrected this data from sea level to local atmospheric pressure using the equation [where the BP readings MUST be in mm Hg) is: True BP = [Corrected BP] – [2.5 * (Local Altitude in ft above sea level/100)]. Note that Inches of Hg x 25.4 = mm Hg]. We elected to use the airport data to compensate the entire in-water PT dataset to ensure consistency of the approach. In-water PT data was compensated using "option 1" in the HOBO software wizard, which compensates for the data only where the two datasets overlap, interpolating between points that do not exactly align. 
 
+# Requirements: Google Drive access to the Webster Lab BEGI Drive folders for compensated PT data files.
+#     ---->>>> This connection to Google Drive should be replaced with reference to files on HydroShare using an API - see draft HydroShare block below.
+
+# Outputs for downstream use:
+# 1. Iterative lists of dataframes (saved as RDS files) of water depth and PT data after each major processing step, with the final two used in all downstream workflows being "BEGI_PT_DTW_all.RDS" (a single dataframe) and "BEGI_PTz_DTW.RDS" (a list of 4 dataframes, one for each well).
+# 2. A multi-panel timeseries plot of river discharge + depth to water in all 4 wells: "RGdischarge_allwellsDTW.png"
+
 #
 #### Libraries ####
 library(googledrive)
@@ -150,7 +157,7 @@ for(i in siteIDz){
 sum(duplicated(BEGI_PTz[["VDOW"]]$datetimeMT))
 
 #
-#### complete timeseries with all possible time stamps ####
+#### Complete timeseries with all possible time stamps ####
 
 BEGI_PTz.ts = BEGI_PTz
 
@@ -192,7 +199,7 @@ ggplot(data=BEGI_PTz.ts2[["SLOC"]], aes(datetimeMT, (SensorDepth_m)))+
   geom_line()+
   geom_point()
 
-#### remove obvious outliers ####
+#### Remove obvious outliers ####
 
 # get service date/times
 service.VDOS = as.POSIXct(read.csv("EXO_compiled/service.VDOS.csv")[,2],tz="US/Mountain")
@@ -208,7 +215,7 @@ flag_service_outliers <- function(data,
                                   source_col            = "SensorDepth_m",
                                   service_times,
                                   buffer_hours          = 12,
-                                  roll_width            = 9,
+                                  roll_width            = 18,
                                   jump_threshold        = 0.05,
                                   global_jump_threshold = 0.15) {
   
@@ -250,13 +257,15 @@ flag_service_outliers <- function(data,
 }
 
 
-# apply outlier removal function to each site and plot to check
+# remove out of water outliers, apply outlier removal function to each site, and plot to check
 
 # VDOW
 BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C = BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m
 # remove the first 9 real readings of VDOW's record (too early for the rolling-window method to have a baseline to compare against)
 first_9 <- which(!is.na(BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C))[1:9]
 BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C[first_9] <- NA
+# remove other stray out of water readings
+BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C[BEGI_PTz.ts2[["VDOW"]]$SensorDepth_m_C < 1] <- NA
 # apply rolling function
 BEGI_PTz.ts2[["VDOW"]] <- flag_service_outliers(BEGI_PTz.ts2[["VDOW"]], service_times = service.VDOW)
 # plot to check
@@ -286,6 +295,8 @@ BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C = BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m
 # remove the first 31 real readings of VDOS's record (too early for the rolling-window method to have a baseline to compare against)
 first_31 <- which(!is.na(BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C))[1:31]
 BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C[first_31] <- NA
+# remove other stray out of water readings
+BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C[BEGI_PTz.ts2[["VDOS"]]$SensorDepth_m_C < 1] <- NA
 # apply rolling function
 BEGI_PTz.ts2[["VDOS"]] <- flag_service_outliers(BEGI_PTz.ts2[["VDOS"]], service_times = service.VDOS)
 # plot to check
@@ -316,6 +327,8 @@ BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C = BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m
 # remove the first 39 real readings of SLOW's record (too early for the rolling-window method to have a baseline to compare against)
 first_39 <- which(!is.na(BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C))[1:39]
 BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C[first_39] <- NA
+# remove other stray out of water readings
+BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C[BEGI_PTz.ts2[["SLOW"]]$SensorDepth_m_C < 1.5] <- NA
 # apply rolling function
 BEGI_PTz.ts2[["SLOW"]] <- flag_service_outliers(BEGI_PTz.ts2[["SLOW"]], service_times = service.SLOW)
 # plot to check
@@ -346,6 +359,8 @@ BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C = BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m
 # remove the first 37 real readings of SLOC's record (too early for the rolling-window method to have a baseline to compare against)
 first_37 <- which(!is.na(BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C))[1:37]
 BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C[first_37] <- NA
+# remove other stray out of water readings
+BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C[BEGI_PTz.ts2[["SLOC"]]$SensorDepth_m_C < 0.2] <- NA
 # apply rolling function
 BEGI_PTz.ts2[["SLOC"]] <- flag_service_outliers(BEGI_PTz.ts2[["SLOC"]], service_times = service.SLOC)
 # plot to check
@@ -374,53 +389,55 @@ legend("topright",
 
 
 
-#### save and re-add cleaned sensor depth data ####
-
+#### save and re-add cleaned sensor depth data
 
 saveRDS(BEGI_PTz.ts2, "DTW_compiled/BEGI_PTz.ts2.rds")
 rm(list = ls())
 BEGI_PTz.ts4 = readRDS("DTW_compiled/BEGI_PTz.ts2.rds")
 
-#### correct baseline jumps ####
+#### Correct baseline jumps ####
 
 # Baseline jumps likely resulted from the cable getting tangled such that its length was temporarily changed when sondes were being serviced. 
-
-# baseline-corrected data will be saved as BEGI_PTz.ts5 as SensorDepth_m_CBC
+# Baseline-corrected data will be saved in BEGI_PTz.ts5 as SensorDepth_m_CBC
 
 BEGI_PTz.ts5 = BEGI_PTz.ts4
 
-# get service date/times from googledrive
-service_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1quyArAKgI5qn_lz4n1vjnoMrM0XJWdDl")
-2
-googledrive::drive_download(as_id(service_tibble$id[service_tibble$name=="sensor_event_log.xlsx"]), overwrite = TRUE,path="googledrive/sensor_event_log.xlsx")
+# get service date/times
+service.VDOS = as.POSIXct(read.csv("EXO_compiled/service.VDOS.csv")[,2],tz="US/Mountain")
+service.VDOW = as.POSIXct(read.csv("EXO_compiled/service.VDOW.csv")[,2],tz="US/Mountain")
+service.SLOW = as.POSIXct(read.csv("EXO_compiled/service.SLOW.csv")[,2],tz="US/Mountain")
+service.SLOC = as.POSIXct(read.csv("EXO_compiled/service.SLOC.csv")[,2],tz="US/Mountain")
 
-# read in file and filter to EXO1 removal and deployments
-service = readxl::read_excel("googledrive/sensor_event_log.xlsx")
-service = service[service$model=="EXO1",]
-service = service[service$observation=="removed" | service$observation=="deployed",]
-
-# format date and time
-service$datetime = paste(service$date,  service$time, sep = " ")
-# convert to POIXct and set timezone
-service$datetimeMT<-as.POSIXct(service$datetime, 
-                               format = "%Y-%m-%d %H:%M",
-                               tz="US/Mountain")
-service$date = as.Date(service$date)
-service$...9=NULL
-
-### plot data in chunks to find baseline jumps
-## VDOW ##
-temp =  BEGI_PTz.ts4[["VDOW"]][BEGI_PTz.ts4[["VDOW"]]$datetimeMT>=as.POSIXct("2023-09-15 00:00:00") &
-                                 BEGI_PTz.ts4[["VDOW"]]$datetimeMT<as.POSIXct("2023-11-01 00:00:00"),]
-plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o")
+### plot to check
+# VDOW
+ggplot(data=BEGI_PTz.ts5[["VDOW"]], aes(datetimeMT, (SensorDepth_m_C)))+
+  geom_line()+
+  geom_point()
 # no jumps in VDOW
+
+# VDOS
+ggplot(data=BEGI_PTz.ts5[["VDOS"]], aes(datetimeMT, (SensorDepth_m_C)))+
+  geom_line()+
+  geom_point()
+# one small jump in November 2023
+
+# SLOW
+ggplot(data=BEGI_PTz.ts5[["SLOW"]], aes(datetimeMT, (SensorDepth_m_C)))+
+  geom_line()+
+  geom_point()
+# two jumps in Dec-Feb
+
+# SLOC
+ggplot(data=BEGI_PTz.ts5[["SLOC"]], aes(datetimeMT, (SensorDepth_m_C)))+
+  geom_line()+
+  geom_point()
+# lots of jumps throughout record. This well is the shallowest and most prone to tangles.
+
+
+## VDOW ##
 BEGI_PTz.ts5[["VDOW"]]$SensorDepth_m_CBC = BEGI_PTz.ts5[["VDOW"]]$SensorDepth_m_C
 
 ## VDOS ##
-service.VDOS = service$datetimeMT[service$location=="VDOS"]
-temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2024-10-01 00:00:00") &
-                                 BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2024-11-01 00:00:00"),]
-plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o");abline(v=as.POSIXct(service.VDOS), col="red")
 # correction 1
 temp =  BEGI_PTz.ts4[["VDOS"]][BEGI_PTz.ts4[["VDOS"]]$datetimeMT>=as.POSIXct("2023-11-21 00:00:00") &
                                  BEGI_PTz.ts4[["VDOS"]]$datetimeMT<as.POSIXct("2023-11-29 00:00:00"),]
@@ -436,23 +453,9 @@ temp =  BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.POSIXct("20
 plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o")
 abline(v=as.POSIXct(service.VDOS), col="red")
 # end correction 1
-# # remove outliers I missed previously
-# BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT==as.POSIXct("2024-03-19 13:30:00"),
-#                        "SensorDepth_m_CBC"] = NA
-# BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT==as.POSIXct("2024-04-30 09:45:00"),
-#                        "SensorDepth_m_CBC"] = NA
-# BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT>as.POSIXct("2024-05-28 12:00:00")&
-#                          BEGI_PTz.ts5[["VDOS"]]$datetimeMT<as.POSIXct("2024-05-28 13:45:00"),
-#                        "SensorDepth_m_CBC"] = NA
-# BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT==as.POSIXct("2024-08-21 10:00:00"),
-#                        "SensorDepth_m_CBC"] = NA
-# temp =  BEGI_PTz.ts5[["VDOS"]][BEGI_PTz.ts5[["VDOS"]]$datetimeMT>=as.POSIXct("2024-08-20 OO:OO:OO") &
-#                                  BEGI_PTz.ts5[["VDOS"]]$datetimeMT<as.POSIXct("2024-08-22 OO:OO:OO"),]
-# plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o");abline(v=as.POSIXct(service.VDOS), col="red")
 
 
 ## SLOW ##
-service.SLOW = service$datetimeMT[service$location=="SLOW"]
 temp =  BEGI_PTz.ts4[["SLOW"]][BEGI_PTz.ts4[["SLOW"]]$datetimeMT>=as.POSIXct("2023-12-01 00:00:00") &
                                  BEGI_PTz.ts4[["SLOW"]]$datetimeMT<as.POSIXct("2024-02-15 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o");abline(v=as.POSIXct(service.SLOW), col="red")
@@ -476,9 +479,20 @@ temp =  BEGI_PTz.ts5[["SLOW"]][BEGI_PTz.ts5[["SLOW"]]$datetimeMT>=as.POSIXct("20
                                  BEGI_PTz.ts5[["SLOW"]]$datetimeMT<as.POSIXct("2024-03-05 20:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o"); abline(v=as.POSIXct(service.SLOW), col="red")
 # end correction 1 & 2
+# correction 3
+temp =  BEGI_PTz.ts4[["SLOW"]][BEGI_PTz.ts4[["SLOW"]]$datetimeMT>=as.POSIXct("2023-11-21 00:00:00") &
+                                 BEGI_PTz.ts4[["SLOW"]]$datetimeMT<as.POSIXct("2023-11-24 00:00:00"),]
+plot(temp$datetimeMT, temp$SensorDepth_m_C, type="o");abline(v=as.POSIXct(service.SLOW), col="red")
+BEGI_PTz.ts5[["SLOW"]]$SensorDepth_m_CBC[BEGI_PTz.ts5[["SLOW"]]$datetimeMT>=as.POSIXct("2023-11-21 19:00:00") &
+                                           BEGI_PTz.ts5[["SLOW"]]$datetimeMT<=as.POSIXct("2023-11-22 15:00:00")] = 
+  BEGI_PTz.ts5[["SLOW"]]$SensorDepth_m_C[BEGI_PTz.ts5[["SLOW"]]$datetimeMT>=as.POSIXct("2023-11-21 19:00:00") &
+                                           BEGI_PTz.ts5[["SLOW"]]$datetimeMT<=as.POSIXct("2023-11-22 15:00:00")] + (2.368-2.181)
+temp =  BEGI_PTz.ts5[["SLOW"]][BEGI_PTz.ts5[["SLOW"]]$datetimeMT>=as.POSIXct("2023-11-21 00:00:00") &
+                                 BEGI_PTz.ts5[["SLOW"]]$datetimeMT<as.POSIXct("2023-11-24 00:00:00"),]
+plot(temp$datetimeMT, temp$SensorDepth_m_CBC, type="o");abline(v=as.POSIXct(service.SLOW), col="red")
+
 
 ## SLOC ##
-service.SLOC = service$datetimeMT[service$location=="SLOC"]
 temp =  BEGI_PTz.ts4[["SLOC"]][BEGI_PTz.ts4[["SLOC"]]$datetimeMT>=as.POSIXct("2023-11-01 00:00:00") &
                                  BEGI_PTz.ts4[["SLOC"]]$datetimeMT<as.POSIXct("2024-01-01 00:00:00"),]
 plot(temp$datetimeMT, temp$SensorDepth_m_C*-1, type="o");abline(v=as.POSIXct(service.SLOC), col="red")
@@ -570,7 +584,7 @@ BEGI_PTz.ts6 = BEGI_PTz.ts5
 # VDOW
 par(mfrow=c(2,1)) # set up plotting window to comapare ts before and after gap filling
 # Make univariate zoo time series #
-ts.temp<-read.zoo(BEGI_PTz.ts6[["VDOW"]][,c(1,5)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
+ts.temp<-read.zoo(BEGI_PTz.ts6[["VDOW"]][,c(1,7)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 # ‘order.by’ are not unique warning suggests duplicate time stamps. I found that this is due to time zone changes, so nothing to worry about for regular time steps. 
 plot(ts.temp)
 # Apply NA interpolation method
@@ -589,7 +603,7 @@ sum(is.na(BEGI_PTz.ts6[["VDOW"]]$SensorDepth_m_CBC_sm))
 # VDOS
 par(mfrow=c(2,1)) # set up plotting window to comapare ts before and after gap filling
 # Make univariate zoo time series #
-ts.temp<-read.zoo(BEGI_PTz.ts6[["VDOS"]][,c(1,5)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
+ts.temp<-read.zoo(BEGI_PTz.ts6[["VDOS"]][,c(1,7)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 # ‘order.by’ are not unique warning suggests duplicate time stamps. I found that this is due to time zone changes, so nothing to worry about for regular time steps. 
 plot(ts.temp)
 # Apply NA interpolation method
@@ -608,7 +622,7 @@ sum(is.na(BEGI_PTz.ts6[["VDOS"]]$SensorDepth_m_CBC_sm))
 # SLOW
 par(mfrow=c(2,1)) # set up plotting window to comapare ts before and after gap filling
 # Make univariate zoo time series #
-ts.temp<-read.zoo(BEGI_PTz.ts6[["SLOW"]][,c(1,5)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
+ts.temp<-read.zoo(BEGI_PTz.ts6[["SLOW"]][,c(1,7)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 # ‘order.by’ are not unique warning suggests duplicate time stamps. I found that this is due to time zone changes, so nothing to worry about for regular time steps. 
 plot(ts.temp)
 # Apply NA interpolation method
@@ -627,7 +641,7 @@ sum(is.na(BEGI_PTz.ts6[["SLOW"]]$SensorDepth_m_CBC_sm))
 # SLOC
 par(mfrow=c(2,1)) # set up plotting window to comapare ts before and after gap filling
 # Make univariate zoo time series #
-ts.temp<-read.zoo(BEGI_PTz.ts6[["SLOC"]][,c(1,5)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
+ts.temp<-read.zoo(BEGI_PTz.ts6[["SLOC"]][,c(1,7)], index.column=1, format="%Y-%m-%d %H:%M:%S", tz="US/Mountain")
 # ‘order.by’ are not unique warning suggests duplicate time stamps. I found that this is due to time zone changes, so nothing to worry about for regular time steps. 
 plot(ts.temp)
 # Apply NA interpolation method
@@ -650,31 +664,28 @@ for(i in siteIDz){
   BEGI_PTz.ts6[[i]]$SensorDepth_m_CBC_sm = zoo::rollmean(BEGI_PTz.ts6[[i]]$SensorDepth_m_CBC_sm, 3, na.pad = TRUE)
 }
 # plot to check
-ggplot(data=BEGI_PTz.ts6[["VDOW"]], aes(datetimeMT, (SensorDepth_m_CBC_sm*-1)))+
+ggplot(data=BEGI_PTz.ts6[["VDOW"]], aes(datetimeMT, (SensorDepth_m_CBC_sm)))+
   geom_line()
-ggplot(data=BEGI_PTz.ts6[["VDOS"]], aes(datetimeMT, (SensorDepth_m_CBC_sm*-1)))+
+ggplot(data=BEGI_PTz.ts6[["VDOS"]], aes(datetimeMT, (SensorDepth_m_CBC_sm)))+
   geom_line()
-ggplot(data=BEGI_PTz.ts6[["SLOW"]], aes(datetimeMT, (SensorDepth_m_CBC_sm*-1)))+
+ggplot(data=BEGI_PTz.ts6[["SLOW"]], aes(datetimeMT, (SensorDepth_m_CBC_sm)))+
   geom_line()
-ggplot(data=BEGI_PTz.ts6[["SLOC"]], aes(datetimeMT, (SensorDepth_m_CBC_sm*-1)))+
+ggplot(data=BEGI_PTz.ts6[["SLOC"]], aes(datetimeMT, (SensorDepth_m_CBC_sm)))+
   geom_line()
 
 
 #
 
-#### save and re-add cleaned sensor depth data ####
-
-
+#### save and re-add cleaned sensor depth data
 saveRDS(BEGI_PTz.ts6, "DTW_compiled/BEGI_PTz.rds")
 rm(list = ls())
 BEGI_PTz = readRDS("DTW_compiled/BEGI_PTz.rds")
 
 #
-#### load in manual DTW dataset ####
+#### Add manual DTW dataset ####
 
 # get data from googledrive
-beeper_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1L5ywkdYUOxhE3GPm7vbMiwgObOyn3awF")
-2
+beeper_tibble <- googledrive::drive_ls("https://drive.google.com/drive/folders/1J6iYi6RLIC-9ao8Tgo7twiPB_Afq3o9H")
 googledrive::drive_download(as_id(beeper_tibble$id[beeper_tibble$name=="BEGI_beeper"]), overwrite = TRUE,
                             path="googledrive/BEGI_beeper.csv")
 beeper = read.csv("googledrive/BEGI_beeper.csv")
@@ -692,7 +703,7 @@ beeper_r = data.frame(datetimeMT = beeper$datetimeMT,
                       wellID = beeper$wellID,
                       DTW_beeper = beeper$waterlevelbelowsurface_cm)
 
-#### join beeper DTW to PT sensor depth data ####
+#### join beeper DTW to PT sensor depth data
 
 # add site and well IDs
 BEGI_PTz[["VDOW"]]$siteID = "VDO"
@@ -713,85 +724,86 @@ for(i in siteIDz){
 for(i in siteIDz){
   BEGI_PTz[[i]]$DTW_beeper_m = BEGI_PTz[[i]]$DTW_beeper/100
 }
-# convert SensorDepth_m_CBC_sm positive to negative to reflect relative depth from surface
+# convert DTW_beeper_m from positive to negative to reflect relative depth from surface, where zero is the ground surface
 for(i in siteIDz){
-  BEGI_PTz[[i]]$SensorDepth_m_CBC_sm_neg = BEGI_PTz[[i]]$SensorDepth_m_CBC_sm*-1
+  BEGI_PTz[[i]]$DTW_beeper_m_neg = BEGI_PTz[[i]]$DTW_beeper_m*-1
 }
 
 # plot to check
 ggplot(data=BEGI_PTz[["VDOW"]])+
-  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm_neg))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
+  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm))+
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
 ggplot(data=BEGI_PTz[["VDOS"]])+
-  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm_neg))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
+  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm))+
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
 ggplot(data=BEGI_PTz[["SLOW"]])+
-  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm_neg))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
+  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm))+
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
 ggplot(data=BEGI_PTz[["SLOC"]])+
-  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm_neg))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
+  geom_line(aes(datetimeMT, SensorDepth_m_CBC_sm))+
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
 
 
-#### for each well, plot PT data v. measurements and model ####
+#### Convert PT depth to DTW ####
 
 # VDOW
-plot(BEGI_PTz[["VDOW"]]$DTW_beeper_m ~ BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm_neg)
-m.VDOW = lm(BEGI_PTz[["VDOW"]]$DTW_beeper_m ~ BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm_neg)
+plot(BEGI_PTz[["VDOW"]]$DTW_beeper_m_neg ~ BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm)
+m.VDOW = lm(BEGI_PTz[["VDOW"]]$DTW_beeper_m_neg ~ BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm)
 abline(m.VDOW)
 summary(m.VDOW)
 cf <- coef(m.VDOW)
 Intercept <- cf[1]
 Slope <- cf[2]
-BEGI_PTz[["VDOW"]]$DTW_m = BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm_neg*Slope + Intercept
+BEGI_PTz[["VDOW"]]$DTW_m = BEGI_PTz[["VDOW"]]$SensorDepth_m_CBC_sm*Slope + Intercept
 ggplot(data=BEGI_PTz[["VDOW"]])+
   geom_line(aes(datetimeMT, DTW_m))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
-ggplot(data=BEGI_PTz[["VDOW"]])+ geom_line(aes(datetimeMT, DTW_m*-1))+ylim(c(-3,0))
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
+ggplot(data=BEGI_PTz[["VDOW"]])+ geom_line(aes(datetimeMT, DTW_m))+ylim(c(-3,0))
 
 # VDOS
-plot(BEGI_PTz[["VDOS"]]$DTW_beeper_m ~ BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm_neg)
-m.VDOS = lm(BEGI_PTz[["VDOS"]]$DTW_beeper_m ~ BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm_neg)
+plot(BEGI_PTz[["VDOS"]]$DTW_beeper_m_neg ~ BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm)
+m.VDOS = lm(BEGI_PTz[["VDOS"]]$DTW_beeper_m_neg ~ BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm)
 abline(m.VDOS)
 summary(m.VDOS)
 cf <- coef(m.VDOS)
 Intercept <- cf[1]
 Slope <- cf[2]
-BEGI_PTz[["VDOS"]]$DTW_m = BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm_neg*Slope + Intercept
+BEGI_PTz[["VDOS"]]$DTW_m = BEGI_PTz[["VDOS"]]$SensorDepth_m_CBC_sm*Slope + Intercept
 ggplot(data=BEGI_PTz[["VDOS"]])+
   geom_line(aes(datetimeMT, DTW_m))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
-ggplot(data=BEGI_PTz[["VDOS"]])+ geom_line(aes(datetimeMT, DTW_m*-1))+ylim(c(-3,0))
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
+ggplot(data=BEGI_PTz[["VDOS"]])+ geom_line(aes(datetimeMT, DTW_m))+ylim(c(-3,0))
 
 # SLOW
-plot(BEGI_PTz[["SLOW"]]$DTW_beeper_m ~ BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm_neg)
-m.SLOW = lm(BEGI_PTz[["SLOW"]]$DTW_beeper_m ~ BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm_neg)
+plot(BEGI_PTz[["SLOW"]]$DTW_beeper_m_neg ~ BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm)
+m.SLOW = lm(BEGI_PTz[["SLOW"]]$DTW_beeper_m_neg ~ BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm)
 abline(m.SLOW)
 summary(m.SLOW)
 cf <- coef(m.SLOW)
 Intercept <- cf[1]
 Slope <- cf[2]
-BEGI_PTz[["SLOW"]]$DTW_m = BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm_neg*Slope + Intercept
+BEGI_PTz[["SLOW"]]$DTW_m = BEGI_PTz[["SLOW"]]$SensorDepth_m_CBC_sm*Slope + Intercept
 ggplot(data=BEGI_PTz[["SLOW"]])+
   geom_line(aes(datetimeMT, DTW_m))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
-ggplot(data=BEGI_PTz[["SLOW"]])+ geom_line(aes(datetimeMT, DTW_m*-1))+ylim(c(-3,.5))
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
+ggplot(data=BEGI_PTz[["SLOW"]])+ geom_line(aes(datetimeMT, DTW_m))+ylim(c(-3,.5))
 
 # SLOC
-plot(BEGI_PTz[["SLOC"]]$DTW_beeper_m ~ BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm_neg)
-m.SLOC = lm(BEGI_PTz[["SLOC"]]$DTW_beeper_m ~ BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm_neg)
+plot(BEGI_PTz[["SLOC"]]$DTW_beeper_m_neg ~ BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm)
+m.SLOC = lm(BEGI_PTz[["SLOC"]]$DTW_beeper_m_neg ~ BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm)
 abline(m.SLOC)
 summary(m.SLOC)
 cf <- coef(m.SLOC)
 Intercept <- cf[1]
 Slope <- cf[2]
-BEGI_PTz[["SLOC"]]$DTW_m = BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm_neg*Slope + Intercept
+BEGI_PTz[["SLOC"]]$DTW_m = BEGI_PTz[["SLOC"]]$SensorDepth_m_CBC_sm*Slope + Intercept
 ggplot(data=BEGI_PTz[["SLOC"]])+
   geom_line(aes(datetimeMT, DTW_m))+
-  geom_point(aes(datetimeMT, DTW_beeper_m), size=3, color="red")
-ggplot(data=BEGI_PTz[["SLOC"]])+ geom_line(aes(datetimeMT, DTW_m*-1))+ylim(c(-3,.5))
+  geom_point(aes(datetimeMT, DTW_beeper_m_neg), size=3, color="red")
+ggplot(data=BEGI_PTz[["SLOC"]])+ geom_line(aes(datetimeMT, DTW_m))+ylim(c(-3,.5))
 
-#### save finalized DTW data ####
+
+#### save finalized DTW data
 
 # save as list
 saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
@@ -800,10 +812,92 @@ saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
 BEGI_PT_DTW_all = rbind(BEGI_PTz[["VDOW"]],BEGI_PTz[["VDOS"]],BEGI_PTz[["SLOW"]],BEGI_PTz[["SLOC"]])
 saveRDS(BEGI_PT_DTW_all, "DTW_compiled/BEGI_PT_DTW_all.rds")
 
-#### add discharge data from Rio Grande ####
+#### Fill gap in VDOW ####
 
-# USGS station: Rio Grande at Isleta Lakes NR Isleta, NM - 08330875
-NM_retrieve_usgs_data <- function(start_date, end_date, site_no = "08330875", p_code = "00060") {
+# there is a large datgap in VDOW from 2023-10-20 08:15:00 to 2024-02-06 10:30:00. This well is very physically close to VDOS and the data looks extremely similar other than a small difference in depth below the surface. The R-sq of their linear relationship is 0.9891. I therefore think it's appropriate to use VDOS to predict VDOW and fill the gap. 
+
+DTW = readRDS("DTW_compiled/BEGI_PTz_DTW.rds")
+DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
+
+# plot VDO wells
+ggplot(DTW_df[DTW_df$siteID=="VDO",], aes(datetimeMT, DTW_m*-1, color=wellID)) +
+  xlab("") +
+  ylab("Water Depth Below Surface (m)")+
+  geom_hline(yintercept=0, linetype = 'dashed') +
+  geom_line(key_glyph = "timeseries",linewidth=1,alpha=0.75) +
+  facet_grid(rows=vars(siteID))+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45,hjust = 1),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        text = element_text(size = 20))+
+  scale_color_viridis(discrete = TRUE, option = "D")
+
+# define relationship between VDOS and VDOW
+plot(DTW_df$DTW_m[DTW_df$wellID=="VDOW"] ~ DTW_df$DTW_m[DTW_df$wellID=="VDOS"])
+m.VDOW = lm(DTW_df$DTW_m[DTW_df$wellID=="VDOW"] ~ DTW_df$DTW_m[DTW_df$wellID=="VDOS"])
+abline(m.VDOW)
+summary(m.VDOW)
+cf <- coef(m.VDOW)
+Intercept <- cf[1]
+Slope <- cf[2]
+
+# predict data gap
+DTW_df$DTW_m[DTW_df$wellID=="VDOW" 
+             & DTW_df$datetimeMT >= as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain")
+             & DTW_df$datetimeMT <= as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain")] = # length=10478
+  DTW_df$DTW_m[DTW_df$wellID=="VDOS"
+               & DTW_df$datetimeMT >= as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain")
+               & DTW_df$datetimeMT <= as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain")] *Slope + Intercept # length=10478
+
+# plot to check
+ggplot(DTW_df[DTW_df$siteID=="VDO"
+              & DTW_df$datetimeMT >= as.POSIXct("2023-10-10 08:15:00", tz="US/Mountain")
+              & DTW_df$datetimeMT <= as.POSIXct("2024-02-12 10:30:00", tz="US/Mountain"),], 
+       aes(datetimeMT, DTW_m*-1, color=wellID)) +
+  xlab("") +
+  ylab("Water Depth Below Surface (m)")+
+  geom_hline(yintercept=0, linetype = 'dashed') +
+  geom_vline(xintercept=as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain"), linetype = 'dashed') +
+  geom_vline(xintercept=as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain"), linetype = 'dashed') +
+  geom_line(key_glyph = "timeseries",linewidth=1,alpha=0.75) +
+  facet_grid(rows=vars(siteID))+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45,hjust = 1),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        text = element_text(size = 20))+
+  scale_color_viridis(discrete = TRUE, option = "D")
+
+# replace in list version of data
+
+DTW[["VDOW"]]$DTW_m = DTW_df$DTW_m[DTW_df$wellID=="VDOW"]
+
+#### save data with VDOW gap filled
+
+# save as list
+saveRDS(DTW, "DTW_compiled/BEGI_PTz_DTW.rds")
+
+# save as dataframe
+saveRDS(DTW_df, "DTW_compiled/BEGI_PT_DTW_all.rds")
+
+#
+
+
+
+
+#### Add discharge data from Rio Grande ####
+
+#### clean environment and re-add finalized DTW data
+rm(list = ls())
+BEGI_PTz = readRDS("DTW_compiled/BEGI_PTz_DTW.rds")
+
+# USGS station: Rio Grande at Valle DE Oro, NM - USGS - 08330830
+NM_retrieve_usgs_data <- function(start_date, end_date, site_no = "08330830", p_code = "00060") {
   #Retrieve the USGS discharge data as an instantaneous (uv) data type.
   usgs_data <- readNWISuv(siteNumbers = site_no, parameterCd = p_code, startDate = start_date, endDate = end_date)
   #Rename columns to more user-friendly names.
@@ -880,7 +974,7 @@ ggplot(BEGI_PT_DTW_all, aes(datetimeMT, DTW_m, color=wellID)) +
   geom_line() +
   facet_grid(~siteID)
 
-#### save data with Rio Grande discharge included ####
+#### save data with Rio Grande discharge included
 
 # save as list
 saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
@@ -888,81 +982,8 @@ saveRDS(BEGI_PTz, "DTW_compiled/BEGI_PTz_DTW.rds")
 # save as dataframe
 saveRDS(BEGI_PT_DTW_all, "DTW_compiled/BEGI_PT_DTW_all.rds")
 
-#### re-add data and fill gap in VDOW ####
 
-# there is a large datgap in VDOW from 2023-10-20 08:15:00 to 2024-02-06 10:30:00. This well is very physically close to VDOS and the data looks extremely similar other than a small difference in depth below the surface. The R-sq of their linear relationship is 0.9891. I therefore think it's appropriate to use VDOS to predict VDOW and fill the gap. 
-
-DTW = readRDS("DTW_compiled/BEGI_PTz_DTW.rds")
-DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
-
-# plot VDO wells
-ggplot(DTW_df[DTW_df$siteID=="VDO",], aes(datetimeMT, DTW_m*-1, color=wellID)) +
-  xlab("") +
-  ylab("Water Depth Below Surface (m)")+
-  geom_hline(yintercept=0, linetype = 'dashed') +
-  geom_line(key_glyph = "timeseries",linewidth=1,alpha=0.75) +
-  facet_grid(rows=vars(siteID))+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(angle = 45,hjust = 1),
-        legend.title = element_blank(),
-        legend.position = "bottom",
-        text = element_text(size = 20))+
-  scale_color_viridis(discrete = TRUE, option = "D")
-
-# define relationship between VDOS and VDOW
-plot(DTW_df$DTW_m[DTW_df$wellID=="VDOW"] ~ DTW_df$DTW_m[DTW_df$wellID=="VDOS"])
-m.VDOW = lm(DTW_df$DTW_m[DTW_df$wellID=="VDOW"] ~ DTW_df$DTW_m[DTW_df$wellID=="VDOS"])
-abline(m.VDOW)
-summary(m.VDOW)
-cf <- coef(m.VDOW)
-Intercept <- cf[1]
-Slope <- cf[2]
-
-# predict data gap
-DTW_df$DTW_m[DTW_df$wellID=="VDOW" 
-             & DTW_df$datetimeMT >= as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain")
-             & DTW_df$datetimeMT <= as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain")] = # length=10478
-  DTW_df$DTW_m[DTW_df$wellID=="VDOS"
-               & DTW_df$datetimeMT >= as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain")
-               & DTW_df$datetimeMT <= as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain")] *Slope + Intercept # length=10478
-
-# plot to check
-ggplot(DTW_df[DTW_df$siteID=="VDO"
-              & DTW_df$datetimeMT >= as.POSIXct("2023-10-10 08:15:00", tz="US/Mountain")
-              & DTW_df$datetimeMT <= as.POSIXct("2024-02-12 10:30:00", tz="US/Mountain"),], 
-       aes(datetimeMT, DTW_m*-1, color=wellID)) +
-  xlab("") +
-  ylab("Water Depth Below Surface (m)")+
-  geom_hline(yintercept=0, linetype = 'dashed') +
-  geom_vline(xintercept=as.POSIXct("2023-10-20 08:15:00", tz="US/Mountain"), linetype = 'dashed') +
-  geom_vline(xintercept=as.POSIXct("2024-02-06 10:30:00", tz="US/Mountain"), linetype = 'dashed') +
-  geom_line(key_glyph = "timeseries",linewidth=1,alpha=0.75) +
-  facet_grid(rows=vars(siteID))+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(angle = 45,hjust = 1),
-        legend.title = element_blank(),
-        legend.position = "bottom",
-        text = element_text(size = 20))+
-  scale_color_viridis(discrete = TRUE, option = "D")
-
-# replace in list version of data
-
-DTW[["VDOW"]]$DTW_m = DTW_df$DTW_m[DTW_df$wellID=="VDOW"]
-
-#### save data with VDOW gap filled ####
-
-# save as list
-saveRDS(DTW, "DTW_compiled/BEGI_PTz_DTW.rds")
-
-# save as dataframe
-saveRDS(DTW_df, "DTW_compiled/BEGI_PT_DTW_all.rds")
-
-#
-#### plot all final DTW data together ####
+#### Plot all final DTW data together ####
 
 DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
 
@@ -980,7 +1001,7 @@ Q =
         text = element_text(size = 20))
 
 DTW = 
-  ggplot(DTW_df, aes(datetimeMT, DTW_m*-1, color=wellID)) +
+  ggplot(DTW_df, aes(datetimeMT, DTW_m, color=wellID)) +
   xlab("") +
   ylab("Water Depth Below Surface (m)")+
   geom_hline(yintercept=0, linetype = 'dashed') +
@@ -1000,3 +1021,14 @@ DTW =
 Q_DTW = Q+ DTW+ plot_layout(ncol = 1, widths = c(1,.84), heights=c(1,2))
 ggsave("plots/RGdischarge_allwellsDTW.png", Q_DTW, width=11,height=8, units="in")
 
+
+#### Clear all Google Drive files from local folder to end fresh ####
+
+# NOTE: DO NOT push large files to the github repo! there are too many to push all at once. The purpose of the google drive is to handle all these files, whereas github handles the script :)
+
+googledrive_files <- list.files("googledrive", full.names = TRUE, recursive = TRUE)
+if (length(googledrive_files) > 0) {
+  file.remove(googledrive_files)
+}
+
+# now that your environment is cleaned up, now is a good time to save, commit, push/pull, and restart the R session to get ready for the next script in the workflow!
