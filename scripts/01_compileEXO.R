@@ -403,219 +403,6 @@ rm(list = ls())
 BEGI_EXO.ts.tc = readRDS("EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
 #
-#### NEED TO EDIT --->>> Import DOC data to compare fDOM to DOC ####
-### CHANGE TO COMPARE TO DOC GRAB SAMPLES THAT WERE COLLECTED DURING SONDE DEPLOYMENTS
-# 
-# #get DOC data from google drive
-# doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1292UXqpLoBdB1uFytiBnxg6zFvO6AUMI")
-# doc <- googledrive::drive_ls(path = doc_tibble, type = "xlsx")
-# 
-# #import DOC data without values removed (complete DOC data)
-# googledrive::drive_download(file = doc$id[doc$name=="NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx"], 
-#                             path = "NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx",
-#                             overwrite = T)
-# docdata <- read_xlsx("NPOC-TN_2025-06-09_BEGI-Matrix-Spikes.xlsx", sheet = 8)
-# 
-# ## wrangle DOC data ##
-# 
-# names(docdata)[names(docdata) == 'Conc (mg/L)'] <- 'NPOC'
-# names(docdata)[names(docdata) == 'Matrix Spike'] <- 'MatrixSpike'
-# 
-# #filter by well
-# docdata <- docdata %>%
-#   spread (Well, NPOC)
-# 
-# # filter docdata to df of each well
-# #VDOW
-# docVDOW <- data.frame(docdata$Sample,
-#                       docdata$VDOW,
-#                       docdata$MatrixSpike)
-# docVDOW <- na.omit(docVDOW)
-# 
-# #VDOS
-# docVDOS <- data.frame(docdata$Sample,
-#                       docdata$VDOS,
-#                       docdata$MatrixSpike)
-# docVDOS <- na.omit(docVDOS)
-# 
-# #SLOC
-# docSLOC <- data.frame(docdata$Sample,
-#                       docdata$SLOC,
-#                       docdata$MatrixSpike)
-# docSLOC <- na.omit(docSLOC)
-# 
-# #SLOW
-# docSLOW <- data.frame(docdata$Sample,
-#                       docdata$SLOW,
-#                       docdata$MatrixSpike)
-# docSLOW <- na.omit(docSLOW)
-# 
-# 
-# #### Partition/clean fDOM data
-# #add a column to label each chunk as Matrix spike
-# 
-# #VDOW#
-# BEGI_EXO.ts[["VDOW"]] <- BEGI_EXO.ts[["VDOW"]] %>%
-#   mutate(MatrixSpike = case_when(
-#     datetimeMT >= as.POSIXct("2025-06-10 13:45:00") & datetimeMT <= as.POSIXct("2025-06-10 14:08:00") ~ 0,
-#     datetimeMT >= as.POSIXct("2025-06-10 14:34:00") & datetimeMT <= as.POSIXct("2025-06-10 14:49:00") ~ 0.5,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:13:00") & datetimeMT <= as.POSIXct("2025-06-10 15:27:00") ~ 1,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:48:00") & datetimeMT <= as.POSIXct("2025-06-10 16:14:00") ~ 2,
-#     datetimeMT >= as.POSIXct("2025-06-10 16:36:00") & datetimeMT <= as.POSIXct("2025-06-10 17:03:00") ~ 5,
-#     datetimeMT >= as.POSIXct("2025-06-10 17:23:00") & datetimeMT <= as.POSIXct("2025-06-10 17:45:00") ~ 10,
-#   ))
-# 
-# #VDOS#
-# BEGI_EXO.ts[["VDOS"]] <- BEGI_EXO.ts[["VDOS"]] %>%
-#   mutate(MatrixSpike = case_when(
-#     datetimeMT >= as.POSIXct("2025-06-10 13:55:00") & datetimeMT <= as.POSIXct("2025-06-10 14:14:00") ~ 0,
-#     datetimeMT >= as.POSIXct("2025-06-10 14:36:00") & datetimeMT <= as.POSIXct("2025-06-10 14:51:00") ~ 0.5,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:15:00") & datetimeMT <= as.POSIXct("2025-06-10 15:29:00") ~ 1,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:52:00") & datetimeMT <= as.POSIXct("2025-06-10 16:17:00") ~ 2,
-#     datetimeMT >= as.POSIXct("2025-06-10 16:37:00") & datetimeMT <= as.POSIXct("2025-06-10 17:06:00") ~ 5,
-#     datetimeMT >= as.POSIXct("2025-06-10 17:25:00") & datetimeMT <= as.POSIXct("2025-06-10 17:47:00") ~ 10,
-#   ))
-# 
-# #SLOC#
-# BEGI_EXO.ts[["SLOC"]] <- BEGI_EXO.ts[["SLOC"]] %>%
-#   mutate(MatrixSpike = case_when(
-#     datetimeMT >= as.POSIXct("2025-06-10 13:59:00") & datetimeMT <= as.POSIXct("2025-06-10 14:17:00") ~ 0,
-#     datetimeMT >= as.POSIXct("2025-06-10 14:40:00") & datetimeMT <= as.POSIXct("2025-06-10 14:53:00") ~ 0.5,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:17:00") & datetimeMT <= as.POSIXct("2025-06-10 15:32:00") ~ 1,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:59:00") & datetimeMT <= as.POSIXct("2025-06-10 16:21:00") ~ 2,
-#     datetimeMT >= as.POSIXct("2025-06-10 16:39:00") & datetimeMT <= as.POSIXct("2025-06-10 17:08:00") ~ 5,
-#     datetimeMT >= as.POSIXct("2025-06-10 17:27:00") & datetimeMT <= as.POSIXct("2025-06-10 17:49:00") ~ 10,
-#   ))
-# 
-# #SLOW#
-# BEGI_EXO.ts[["SLOW"]] <- BEGI_EXO.ts[["SLOW"]] %>%
-#   mutate(MatrixSpike = case_when(
-#     datetimeMT >= as.POSIXct("2025-06-10 14:04:00") & datetimeMT <= as.POSIXct("2025-06-10 14:20:00") ~ 0,
-#     datetimeMT >= as.POSIXct("2025-06-10 14:43:00") & datetimeMT <= as.POSIXct("2025-06-10 14:57:00") ~ 0.5,
-#     datetimeMT >= as.POSIXct("2025-06-10 15:20:00") & datetimeMT <= as.POSIXct("2025-06-10 15:33:00") ~ 1,
-#     datetimeMT >= as.POSIXct("2025-06-10 16:01:00") & datetimeMT <= as.POSIXct("2025-06-10 16:24:00") ~ 2,
-#     datetimeMT >= as.POSIXct("2025-06-10 16:40:00") & datetimeMT <= as.POSIXct("2025-06-10 17:12:00") ~ 5,
-#     datetimeMT >= as.POSIXct("2025-06-10 17:28:00") & datetimeMT <= as.POSIXct("2025-06-10 17:51:00") ~ 10,
-#   ))
-# 
-# #filter each matrix spike group to only include first 50% of datapoints, take average
-# #VDOW#
-# VDOW_mean_fdom <- BEGI_EXO.ts[["VDOW"]] %>%
-#   filter(!is.na(MatrixSpike)) %>%
-#   group_by(MatrixSpike) %>%
-#   arrange(datetimeMT, .by_group = TRUE) %>%
-#   mutate(
-#     row_num = row_number(),
-#     group_size = n(),
-#     cutoff = floor(group_size / 2)  
-#   ) %>%
-#   filter(row_num <= cutoff) %>%
-#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-#   deframe()  
-# 
-# 
-# #VDOS#
-# VDOS_mean_fdom <- BEGI_EXO.ts[["VDOS"]] %>%
-#   filter(!is.na(MatrixSpike)) %>%
-#   group_by(MatrixSpike) %>%
-#   arrange(datetimeMT, .by_group = TRUE) %>%
-#   mutate(
-#     row_num = row_number(),
-#     group_size = n(),
-#     cutoff = floor(group_size / 2)
-#   ) %>%
-#   filter(row_num <= cutoff) %>%
-#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-#   deframe()  
-# 
-# #SLOC#
-# SLOC_mean_fdom <- BEGI_EXO.ts[["SLOC"]] %>%
-#   filter(!is.na(MatrixSpike)) %>%
-#   group_by(MatrixSpike) %>%
-#   arrange(datetimeMT, .by_group = TRUE) %>%
-#   mutate(
-#     row_num = row_number(),
-#     group_size = n(),
-#     cutoff = floor(group_size / 2)  
-#   ) %>%
-#   filter(row_num <= cutoff) %>%
-#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-#   deframe()  
-# 
-# #SLOW#
-# SLOW_mean_fdom <- BEGI_EXO.ts[["SLOW"]] %>%
-#   filter(!is.na(MatrixSpike)) %>%
-#   group_by(MatrixSpike) %>%
-#   arrange(datetimeMT, .by_group = TRUE) %>%
-#   mutate(
-#     row_num = row_number(),
-#     group_size = n(),
-#     cutoff = floor(group_size / 2)  
-#   ) %>%
-#   filter(row_num <= cutoff) %>%
-#   summarise(mean_fDOM = mean(fDOM.QSU.mn, na.rm = TRUE), .groups = "drop") %>%
-#   deframe()  
-# 
-# 
-# #### combined doc/fdom df for each well
-# #complete DOC data
-# #VDOW#
-# docVDOW$fdom <- VDOW_mean_fdom[match(docVDOW$docdata.MatrixSpike,names(VDOW_mean_fdom))]
-# #docVDOW <- docVDOW[-c(3,5),] #removes 5 and 10 mg/L 
-# #VDOS#
-# docVDOS$fdom <- VDOS_mean_fdom[match(docVDOS$docdata.MatrixSpike,names(VDOS_mean_fdom))]
-# #docVDOS <- docVDOS[-c(3,5),] #removes 5 and 10 mg/L
-# #SLOC#
-# docSLOC$fdom <- SLOC_mean_fdom[match(docSLOC$docdata.MatrixSpike,names(SLOC_mean_fdom))]
-# #docSLOC <- docSLOC[-c(3,5),] #removes 5 and 10 mg/L
-# #SLOW#
-# docSLOW$fdom <- SLOW_mean_fdom[match(docSLOW$docdata.MatrixSpike,names(SLOW_mean_fdom))]
-# #docSLOW <- docSLOW[-c(3,5),] #removes 5 and 10 mg/L
-# 
-# 
-# 
-# #### linear regression fdom2doc
-# #VDOW#
-# plot(docVDOW$docdata.VDOW, docVDOW$fdom,
-#      xlab = "NPOC (VDOW)",
-#      ylab = "fDOM",
-#      main = "fDOM vs NPOC")
-# m.VDOW <- lm(fdom ~ docdata.VDOW, data = docVDOW)
-# abline(m.VDOW, col = "blue", lwd = 2)
-# summary(m.VDOW) #R2 = 0.68 with 10 mg/L removed
-# 
-# #VDOS#
-# plot(docVDOS$docdata.VDOS, docVDOS$fdom,
-#      xlab = "NPOC (VDOS)",
-#      ylab = "fDOM",
-#      main = "fDOM vs NPOC")
-# m.VDOS <- lm(fdom ~ docdata.VDOS, data = docVDOS)
-# abline(m.VDOS, col = "blue", lwd = 2)
-# summary(m.VDOS)
-# 
-# #SLOC#
-# plot(docSLOC$docdata.SLOC, docSLOC$fdom,
-#      xlab = "NPOC (SLOC)",
-#      ylab = "fDOM",
-#      main = "fDOM vs NPOC")
-# m.SLOC <- lm(fdom ~ docdata.SLOC, data = docSLOC)
-# abline(m.SLOC, col = "blue", lwd = 2)
-# summary(m.SLOC)
-# 
-# #SLOW#
-# plot(docSLOW$docdata.SLOW, docSLOW$fdom,
-#      xlab = "NPOC (SLOW)",
-#      ylab = "fDOM",
-#      main = "fDOM vs NPOC")
-# m.SLOW <- lm(fdom ~ docdata.SLOW, data = docSLOW)
-# abline(m.SLOW, col = "blue", lwd = 2)
-# summary(m.SLOW)
-
-# none of the relationships strong enough to convert fDOM to DOC
-
-
-
-
 #### Remove servicing times from data ####
 
 # get data from googledrive
@@ -753,6 +540,238 @@ rm(list = ls())
 BEGI_EXO.or = readRDS("EXO_compiled/BEGI_EXO.or.rds")
 
 
+
+#### Import DOC data to compare fDOM to DOC ####
+#get DOC data from google drive
+doc_tibble <- googledrive::as_id("https://drive.google.com/drive/folders/1J6iYi6RLIC-9ao8Tgo7twiPB_Afq3o9H")
+
+doc <- googledrive::drive_ls(path = doc_tibble, type = "xlsx")
+2
+
+googledrive::drive_download(file = doc$id[doc$name=="240620_BEGI_Data.xlsx"],
+                            path = "240620_BEGI_Data.xlsx",
+                            overwrite = T)
+docdata <- read_xlsx("240620_BEGI_Data.xlsx")
+
+#clean up
+names(docdata)[names(docdata) == 'Date_Collected'] <- 'date'
+names(docdata)[names(docdata) == 'NPOC_mg_L'] <- 'NPOC'
+names(docdata)[names(docdata) == 'TN_mg_L'] <- 'TN'
+
+#filter by well
+docdata <- docdata %>%
+  spread (WellID, NPOC)
+docdata$date <- as.Date(docdata$date)
+
+#read in servicing data#
+# read in file and filter to EXO1 removal and deployments
+service = readxl::read_excel("googledrive/sensor_event_log.xlsx")
+service = service[service$model=="EXO1",]
+service = service[service$observation=="removed" | service$observation=="deployed",]
+
+# format date and time
+service$datetime = paste(service$date,  service$time, sep = " ")
+# convert to POIXct and set timezone
+service$datetimeMT<-as.POSIXct(service$datetime,
+                               format = "%Y-%m-%d %H:%M",
+                               tz="US/Mountain")
+service$date = as.Date(service$date)
+
+# remove rows with no exact times
+servicetimes = service[!is.na(service$datetimeMT),]
+
+# service dates
+service.VDOW = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="VDOW"]
+service.VDOS = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="VDOS"]
+service.SLOC = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="SLOC"]
+service.SLOW = servicetimes$datetimeMT[servicetimes$observation=="removed" & servicetimes$location=="SLOW"]
+
+# filter docdata to df of each well
+docVDOW <- data.frame(docdata$date,
+                      docdata$Sample_ID,
+                      docdata$TN,
+                      docdata$VDOW)
+docVDOW <- na.omit(docVDOW)
+docVDOW <- docVDOW[-1,] #no 9/15 measurements
+
+docVDOS <- data.frame(docdata$date,
+                      docdata$Sample_ID,
+                      docdata$TN,
+                      docdata$VDOS)
+docVDOS <- na.omit(docVDOS)
+docVDOS <- docVDOS[-1,]
+
+docSLOC <- data.frame(docdata$date,
+                      docdata$Sample_ID,
+                      docdata$TN,
+                      docdata$SLOC)
+docSLOC <- na.omit(docSLOC)
+docSLOC <- docSLOC[-1,]
+
+docSLOW <- data.frame(docdata$date,
+                      docdata$Sample_ID,
+                      docdata$TN,
+                      docdata$SLOW)
+docSLOW <- na.omit(docSLOW)
+docSLOW <- docSLOW[-1,]
+
+
+#VDOW
+fDOM_df <- data.frame(
+  datetimeMT = as.POSIXct(BEGI_EXO.or[["VDOW"]]$datetimeMT),
+  date = as.Date(BEGI_EXO.or[["VDOW"]]$datetimeMT),
+  fDOM = BEGI_EXO.or[["VDOW"]]$fDOM.QSU.mn.Tc)
+
+#remove NAs to get post-service fdom
+fDOM_df <- na.omit(fDOM_df)
+#
+
+# Index of last fDOM measurement before service datetime
+prev_index <- findInterval(service.VDOW, fDOM_df$datetimeMT) -1
+valid <- prev_index > 0
+
+#Index of fDOM measurement AFTER service datetime (and after fdom measurements returned to "normal")
+next_index <- findInterval(service.VDOW, fDOM_df$datetimeMT) +1
+
+# Get matched times and values
+matched_service_time <- service.VDOW[valid]
+matched_fDOM_time <- fDOM_df$datetimeMT[prev_index[valid]]
+matched_fDOM_vals <- fDOM_df$fDOM[prev_index[valid]]
+
+npoc_vals <- docVDOW$docdata.VDOW[valid]
+
+merged_df <- data.frame(
+  service_time = matched_service_time,
+  fDOM_time = matched_fDOM_time,
+  NPOC = npoc_vals,
+  fDOM = matched_fDOM_vals
+)
+
+plot(merged_df$NPOC, merged_df$fDOM,
+     xlab = "NPOC (VDOW)",
+     ylab = "fDOM (before sample)",
+     main = "fDOM vs NPOC (preceeding fDOM measurement)")
+m.VDOW <- lm(fDOM ~ NPOC, data = merged_df)
+abline(m.VDOW, col = "blue", lwd = 2)
+summary(m.VDOW)
+
+
+#VDOS
+fDOM_df <- data.frame(
+  datetimeMT = as.POSIXct(BEGI_EXO.or[["VDOS"]]$datetimeMT),
+  date = as.Date(BEGI_EXO.or[["VDOS"]]$datetimeMT),
+  fDOM = BEGI_EXO.or[["VDOS"]]$fDOM.QSU.mn.Tc)
+#remove NAs to get post-service fdom
+fDOM_df <- na.omit(fDOM_df)
+#
+
+# Index of last fDOM measurement before service datetime
+prev_index <- findInterval(service.VDOS, fDOM_df$datetimeMT) -1
+valid <- prev_index > 0 #or next_index
+
+#Index of fDOM measurement AFTER service datetime (and after fdom measurements returned to "normal")
+next_index <- findInterval(service.VDOS, fDOM_df$datetimeMT) +1
+
+# Get matched times and values
+matched_service_time <- service.VDOS[valid]
+matched_fDOM_time <- fDOM_df$datetimeMT[prev_index[valid]]
+matched_fDOM_vals <- fDOM_df$fDOM[prev_index[valid]]
+
+npoc_vals <- docVDOS$docdata.VDOS[valid]
+
+merged_df <- data.frame(
+  service_time = matched_service_time,
+  fDOM_time = matched_fDOM_time,
+  NPOC = npoc_vals,
+  fDOM = matched_fDOM_vals
+)
+
+plot(merged_df$NPOC, merged_df$fDOM,
+     xlab = "NPOC (VDOS)",
+     ylab = "fDOM (before sample)",
+     main = "fDOM vs NPOC (preceding fDOM measurement)")
+m.VDOS <- lm(fDOM ~ NPOC, data = merged_df)
+abline(m.VDOS, col = "blue", lwd = 2)
+summary(m.VDOS)
+
+#SLOC
+fDOM_df <- data.frame(
+  datetimeMT = as.POSIXct(BEGI_EXO.or[["SLOC"]]$datetimeMT),
+  date = as.Date(BEGI_EXO.or[["SLOC"]]$datetimeMT),
+  fDOM = BEGI_EXO.or[["SLOC"]]$fDOM.QSU.mn.Tc)
+#remove NAs to get post-service fdom
+fDOM_df <- na.omit(fDOM_df)
+#
+
+# Index of last fDOM measurement before service datetime
+prev_index <- findInterval(service.SLOC, fDOM_df$datetimeMT) -1
+valid <- prev_index > 0
+
+#Index of fDOM measurement AFTER service datetime (and after fdom measurements returned to "normal")
+next_index <- findInterval(service.SLOC, fDOM_df$datetimeMT) +1
+
+# Get matched times and values
+matched_service_time <- service.SLOC[valid]
+matched_fDOM_time <- fDOM_df$datetimeMT[prev_index[valid]]
+matched_fDOM_vals <- fDOM_df$fDOM[prev_index[valid]]
+
+npoc_vals <- docSLOC$docdata.SLOC[valid]
+
+merged_df <- data.frame(
+  service_time = matched_service_time,
+  fDOM_time = matched_fDOM_time,
+  NPOC = npoc_vals,
+  fDOM = matched_fDOM_vals
+)
+
+#remove outlier to see if R2 improves. it doesn't..
+#merged_df <- merged_df[-23,]
+
+plot(merged_df$NPOC, merged_df$fDOM,
+     xlab = "NPOC (SLOC)",
+     ylab = "fDOM (before sample)",
+     main = "fDOM vs NPOC (preceding fDOM measurement)")
+m.SLOC <- lm(fDOM ~ NPOC, data = merged_df)
+abline(m.SLOC, col = "blue", lwd = 2)
+summary(m.SLOC)
+
+#SLOW
+fDOM_df <- data.frame(
+  datetimeMT = as.POSIXct(BEGI_EXO.or[["SLOW"]]$datetimeMT),
+  date = as.Date(BEGI_EXO.or[["SLOW"]]$datetimeMT),
+  fDOM = BEGI_EXO.or[["SLOW"]]$fDOM.QSU.mn.Tc)
+#remove NAs to get post-service fdom
+fDOM_df <- na.omit(fDOM_df)
+#
+
+# Index of last fDOM measurement before service datetime
+prev_index <- findInterval(service.SLOW, fDOM_df$datetimeMT) -1
+valid <- prev_index > 0
+
+#Index of fDOM measurement AFTER service datetime (and after fdom measurements returned to "normal")
+next_index <- findInterval(service.SLOW, fDOM_df$datetimeMT) +1
+
+# Get matched times and values
+matched_service_time <- service.SLOW[valid]
+matched_fDOM_time <- fDOM_df$datetimeMT[prev_index[valid]]
+matched_fDOM_vals <- fDOM_df$fDOM[prev_index[valid]]
+
+npoc_vals <- docSLOW$docdata.SLOW[valid]
+
+merged_df <- data.frame(
+  service_time = matched_service_time,
+  fDOM_time = matched_fDOM_time,
+  NPOC = npoc_vals,
+  fDOM = matched_fDOM_vals
+)
+
+plot(merged_df$NPOC, merged_df$fDOM,
+     xlab = "NPOC (SLOW)",
+     ylab = "fDOM (before sample)",
+     main = "fDOM vs NPOC (preceding fDOM measurement)")
+m.SLOW <- lm(fDOM ~ NPOC, data = merged_df)
+abline(m.SLOW, col = "blue", lwd = 2)
+summary(m.SLOW)
 
 #### Remove obvious out of water and faulting readings ####
 
