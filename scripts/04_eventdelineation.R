@@ -17,14 +17,7 @@ library(patchwork)
 library(scales)
 
 #### Import compiled EXO1 RDS file ####
-EXOz.dtw = readRDS("EXO_compiled/BEGI_EXOz.dtw.rds")
-
-#### Correct negative DO values ####
-
-EXOz.dtw[["VDOW"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOW"]]$ODO.mg.L.mn + 0.36
-EXOz.dtw[["VDOS"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOS"]]$ODO.mg.L.mn + 0.42
-EXOz.dtw[["SLOW"]]$ODO.mg.L.mn <- EXOz.dtw[["SLOW"]]$ODO.mg.L.mn + 0.32
-EXOz.dtw[["SLOC"]]$ODO.mg.L.mn <- EXOz.dtw[["SLOC"]]$ODO.mg.L.mn + 2.2
+EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
 
 #### get sunrise/sunset times ####
 
@@ -497,9 +490,6 @@ EXOz.dtw[["VDOW"]]$event <- with (EXOz.dtw[["VDOW"]], ifelse(as.Date(EXOz.dtw[["
 #### Creating dataframe of just the DO events ####
 
 #SLOC#
-#SLOC_DOx= BEGI_EXO.or2[["SLOC"]][BEGI_EXO.or2[["SLOC"]]$datetimeMT > as.POSIXct("YYYY-MM-DD HH:MM:00",tz= "US/Mountain")
-#             &BEGI_EXO.or2[["SLOC"]]$datetimeMT < as.POSIXct("YYYY-MM-DD HH:MM:00",tz= "US/Mountain"),]
-
 
 #1st event
 SLOC_DO1= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-08 22:45:00",tz= "US/Mountain")
@@ -512,14 +502,6 @@ SLOC_DO2= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-1
 #3rd event
 SLOC_DO3= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-10 22:15:00",tz= "US/Mountain")
                              &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-11 05:45:00",tz= "US/Mountain"),]
-
-#4th event
-#SLOC_DO4= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-16 14:15:00",tz= "US/Mountain")
-#             &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-16 19:15:00",tz= "US/Mountain"),]
-
-#5th event
-#SLOC_DO5= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-17 11:00:00",tz= "US/Mountain")
-#              &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-18 02:15:00",tz= "US/Mountain"),]
 
 #4th event
 SLOC_DO4= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-11-17 19:15:00",tz= "US/Mountain")
@@ -536,10 +518,6 @@ SLOC_DO6= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-1
 #7th event
 SLOC_DO7= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-18 11:00:00",tz= "US/Mountain")
                              &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-18 12:00:00",tz= "US/Mountain"),]
-
-#10th event
-#SLOC_DO10= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-28 23:30:00",tz= "US/Mountain")
-#            &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-29 02:15:00",tz= "US/Mountain"),]
 
 #8th event
 SLOC_DO8= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-01-19 12:30:00",tz= "US/Mountain")
@@ -600,10 +578,6 @@ for (i in seq_along(SLOC_DO)){
 #SLOW#
 
 #1st event
-#SLOW_DO1= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-09-20 10:45:00",tz= "US/Mountain")
-#                                 &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-09-20 12:15:00",tz= "US/Mountain"),]
-
-#1st event
 SLOW_DO1= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-10-16 14:30:00",tz= "US/Mountain")
                              &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-10-16 15:15:00",tz= "US/Mountain"),]
 
@@ -654,18 +628,6 @@ for (i in seq_along(SLOW_DO)){
 #1st event
 VDOW_DO1= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-03 11:30:00",tz= "US/Mountain")
                              &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-03 13:15:00",tz= "US/Mountain"),]
-
-#2nd event
-#VDOW_DO2= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-04 12:00:00",tz= "US/Mountain")
-#                                 &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-04 12:30:00",tz= "US/Mountain"),]
-
-#3rd event
-#VDOW_DO3= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-04 16:15:00",tz= "US/Mountain")
-#                                 &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-04 21:30:00",tz= "US/Mountain"),]
-
-#4th event
-#VDOW_DO4= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-05 13:15:00",tz= "US/Mountain")
-#                                 &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-05 21:15:00",tz= "US/Mountain"),]
 
 #2nd event
 VDOW_DO2= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-16 14:00:00",tz= "US/Mountain")
@@ -1110,7 +1072,6 @@ names(VDOS_fDOM)<-c('VDOS_fDOM1','VDOS_fDOM2','VDOS_fDOM3','VDOS_fDOM4','VDOS_fD
 
 #### Save lists of event dataframes ####
 #DO
-
 Eventdate <-list(SLOC_dates,SLOW_dates,VDOW_dates,VDOS_dates)  
 names(Eventdate)<-c('SLOC_dates','SLOW_dates','VDOW_dates','VDOS_dates')
 
@@ -1125,44 +1086,14 @@ names(BEGI_events)<-c('DO_events','fDOM_events','Eventdate')
 
 #save list
 saveRDS(BEGI_events,"EXO_compiled/BEGI_events.rds")
-
+#rm(list = ls())
 
 #### Import data to plot all events ####
 #import BEGI events (with tc data)
 BEGI_events = readRDS("EXO_compiled/BEGI_events.rds")
 
-#import EXOz.tc
-EXOz.dtw = readRDS("EXO_compiled/BEGI_EXOz.dtw.rds")
-#correct negative DO values
-EXOz.dtw[["VDOW"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOW"]]$ODO.mg.L.mn + 0.36
-EXOz.dtw[["VDOS"]]$ODO.mg.L.mn <- EXOz.dtw[["VDOS"]]$ODO.mg.L.mn + 0.42
-EXOz.dtw[["SLOW"]]$ODO.mg.L.mn <- EXOz.dtw[["SLOW"]]$ODO.mg.L.mn + 0.32
-EXOz.dtw[["SLOC"]]$ODO.mg.L.mn <- EXOz.dtw[["SLOC"]]$ODO.mg.L.mn + 2.2
-
-#Import DTW data
-s
-DTW_df = readRDS("DTW_compiled/BEGI_PT_DTW_all.rds")
-
-### spread DTW_m in DTW_df to each well
-DTW_df <- DTW_df %>%
-  spread (wellID, DTW_m)
-
-#dtw df for each well
-DTW_SLOC <- data.frame(DTW_df$datetimeMT,
-                       DTW_df$SLOC)
-DTW_SLOC <- na.omit(DTW_SLOC)
-
-DTW_SLOW <- data.frame(DTW_df$datetimeMT,
-                       DTW_df$SLOW)
-DTW_SLOW <- na.omit(DTW_SLOW)
-
-DTW_VDOW <- data.frame(DTW_df$datetimeMT,
-                       DTW_df$VDOW)
-DTW_VDOW <- na.omit(DTW_VDOW)
-
-DTW_VDOS <- data.frame(DTW_df$datetimeMT,
-                       DTW_df$VDOS)
-DTW_VDOS <- na.omit(DTW_VDOS)
+#import compiled DTW and EXOz.dtw
+EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
 
 #Define shaded am/pm
 shade_df <- data.frame(
@@ -1188,10 +1119,6 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
     EXOz.dtw[["SLOC"]]$datetimeMT >= start_time &
       EXOz.dtw[["SLOC"]]$datetimeMT <= end_time, ]
   
-  tempdtw <- DTW_SLOC[
-    DTW_SLOC$DTW_df.datetimeMT >= start_time &
-      DTW_SLOC$DTW_df.datetimeMT <= end_time, ]
-  
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -1212,7 +1139,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.SLOC)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
@@ -1275,11 +1202,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
   tempdat <- EXOz.dtw[["SLOW"]][
     EXOz.dtw[["SLOW"]]$datetimeMT >= start_time &
       EXOz.dtw[["SLOW"]]$datetimeMT <= end_time, ]
-  
-  tempdtw <- DTW_SLOW[
-    DTW_SLOW$DTW_df.datetimeMT >= start_time &
-      DTW_SLOW$DTW_df.datetimeMT <= end_time, ]
-  
+
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -1300,7 +1223,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.SLOW)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
@@ -1362,11 +1285,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
   tempdat <- EXOz.dtw[["VDOW"]][
     EXOz.dtw[["VDOW"]]$datetimeMT >= start_time &
       EXOz.dtw[["VDOW"]]$datetimeMT <= end_time, ]
-  
-  tempdtw <- DTW_VDOW[
-    DTW_VDOW$DTW_df.datetimeMT >= start_time &
-      DTW_VDOW$DTW_df.datetimeMT <= end_time, ]
-  
+
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -1387,7 +1306,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.VDOW)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
@@ -1450,10 +1369,6 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
     EXOz.dtw[["VDOS"]]$datetimeMT >= start_time &
       EXOz.dtw[["VDOS"]]$datetimeMT <= end_time, ]
   
-  tempdtw <- DTW_VDOS[
-    DTW_VDOS$DTW_df.datetimeMT >= start_time &
-      DTW_VDOS$DTW_df.datetimeMT <= end_time, ]
-  
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -1474,7 +1389,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.VDOS)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
@@ -1523,7 +1438,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
   )
 }
 
-#### Plot ALL DO events ####
+#### Plot ALL DO events (megaplots) ####
 
 # SLOC
 for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
@@ -1538,17 +1453,13 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   end_time_event <- max(dz$datetimeMT, na.rm = TRUE)
   
   #Subset data
-  tempdat <- EXOz.sdc[["SLOC"]][
-    EXOz.sdc[["SLOC"]]$datetimeMT >= start_time &
-      EXOz.sdc[["SLOC"]]$datetimeMT <= end_time, ]
+  tempdat <- EXOz.dtw[["SLOC"]][
+    EXOz.dtw[["SLOC"]]$datetimeMT >= start_time &
+      EXOz.dtw[["SLOC"]]$datetimeMT <= end_time, ]
   
-  tempdatDOe <- EXOz.sdc[["SLOC"]][
-    EXOz.sdc[["SLOC"]]$datetimeMT >= start_time_event &
-      EXOz.sdc[["SLOC"]]$datetimeMT <= end_time_event, ]  
-  
-  tempdtw <- DTW_SLOC[
-    DTW_SLOC$DTW_df.datetimeMT >= start_time &
-      DTW_SLOC$DTW_df.datetimeMT <= end_time, ]
+  tempdatDOe <- EXOz.dtw[["SLOC"]][
+    EXOz.dtw[["SLOC"]]$datetimeMT >= start_time_event &
+      EXOz.dtw[["SLOC"]]$datetimeMT <= end_time_event, ]  
   
   
   #Plots
@@ -1572,7 +1483,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.SLOC)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
     #         inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
@@ -1635,17 +1546,13 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
   end_time_event <- max(dz$datetimeMT, na.rm = TRUE)
   
   #Subset data
-  tempdat <- EXOz.sdc[["SLOW"]][
-    EXOz.sdc[["SLOW"]]$datetimeMT >= start_time &
-      EXOz.sdc[["SLOW"]]$datetimeMT <= end_time, ]
+  tempdat <- EXOz.dtw[["SLOW"]][
+    EXOz.dtw[["SLOW"]]$datetimeMT >= start_time &
+      EXOz.dtw[["SLOW"]]$datetimeMT <= end_time, ]
   
-  tempdatDOe <- EXOz.sdc[["SLOW"]][
-    EXOz.sdc[["SLOW"]]$datetimeMT >= start_time_event &
-      EXOz.sdc[["SLOW"]]$datetimeMT <= end_time_event, ]  
-  
-  tempdtw <- DTW_SLOW[
-    DTW_SLOW$DTW_df.datetimeMT >= start_time &
-      DTW_SLOW$DTW_df.datetimeMT <= end_time, ]
+  tempdatDOe <- EXOz.dtw[["SLOW"]][
+    EXOz.dtw[["SLOW"]]$datetimeMT >= start_time_event &
+      EXOz.dtw[["SLOW"]]$datetimeMT <= end_time_event, ]  
   
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
@@ -1668,7 +1575,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.SLOW)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
@@ -1731,18 +1638,14 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
   end_time_event <- max(dz$datetimeMT, na.rm = TRUE)
   
   #Subset data
-  tempdat <- EXOz.sdc[["VDOW"]][
-    EXOz.sdc[["VDOW"]]$datetimeMT >= start_time &
-      EXOz.sdc[["VDOW"]]$datetimeMT <= end_time, ]
+  tempdat <- EXOz.dtw[["VDOW"]][
+    EXOz.dtw[["VDOW"]]$datetimeMT >= start_time &
+      EXOz.dtw[["VDOW"]]$datetimeMT <= end_time, ]
   
-  tempdatDOe <- EXOz.sdc[["VDOW"]][
-    EXOz.sdc[["VDOW"]]$datetimeMT >= start_time_event &
-      EXOz.sdc[["VDOW"]]$datetimeMT <= end_time_event, ]  
-  
-  tempdtw <- DTW_VDOW[
-    DTW_VDOW$DTW_df.datetimeMT >= start_time &
-      DTW_VDOW$DTW_df.datetimeMT <= end_time, ]
-  
+  tempdatDOe <- EXOz.dtw[["VDOW"]][
+    EXOz.dtw[["VDOW"]]$datetimeMT >= start_time_event &
+      EXOz.dtw[["VDOW"]]$datetimeMT <= end_time_event, ]  
+
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -1764,7 +1667,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.VDOW)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
               inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
@@ -1827,17 +1730,13 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
   end_time_event <- max(dz$datetimeMT, na.rm = TRUE)
   
   #Subset data
-  tempdat <- EXOz.sdc[["VDOS"]][
-    EXOz.sdc[["VDOS"]]$datetimeMT >= start_time &
-      EXOz.sdc[["VDOS"]]$datetimeMT <= end_time, ]
+  tempdat <- EXOz.dtw[["VDOS"]][
+    EXOz.dtw[["VDOS"]]$datetimeMT >= start_time &
+      EXOz.dtw[["VDOS"]]$datetimeMT <= end_time, ]
   
-  tempdatDOe <- EXOz.sdc[["VDOS"]][
-    EXOz.sdc[["VDOS"]]$datetimeMT >= start_time_event &
-      EXOz.sdc[["VDOS"]]$datetimeMT <= end_time_event, ]  
-  
-  tempdtw <- DTW_VDOS[
-    DTW_VDOS$DTW_df.datetimeMT >= start_time &
-      DTW_VDOS$DTW_df.datetimeMT <= end_time, ]
+  tempdatDOe <- EXOz.dtw[["VDOS"]][
+    EXOz.dtw[["VDOS"]]$datetimeMT >= start_time_event &
+      EXOz.dtw[["VDOS"]]$datetimeMT <= end_time_event, ]  
   
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
@@ -1860,7 +1759,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   
-  g3 <- ggplot(tempdtw, aes(x = DTW_df.datetimeMT, y = -DTW_df.VDOS)) +
+  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
     # geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
     #          inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
