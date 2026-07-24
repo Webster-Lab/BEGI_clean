@@ -47,10 +47,19 @@ get_event_category = function(dz) {
 }
 
 # define function
-calc_ER_event = function(event_df) {
+calc_ER_event = function(event_df, maxgap = 4*3) {
+  
+  # gap-fill short stretches of missing ODO.mg.L.mn via spline interpolation before computing rate of change, so a few missing 15-min readings don't break accrual/decline classification around them. maxgap is the longest run of consecutive missing readings that gets filled, in # of 15-min intervals - longer gaps are left as NA rather than interpolated across, since assuming smooth change over a long gap isn't well justified for these short, punctuated events. 
+  event_df$ODO.mg.L.mn_filled = as.numeric(
+    zoo::na.spline(zoo::zoo(event_df$ODO.mg.L.mn, order.by = event_df$datetimeMT),
+                   maxgap = maxgap, na.rm = FALSE)
+  )
+  # flag which readings were actually filled, for QA/transparency
+  event_df$ODO_was_filled = is.na(event_df$ODO.mg.L.mn) & !is.na(event_df$ODO.mg.L.mn_filled)
+  
   event_df = event_df %>%
     mutate(
-      rate_of_change_per_interval = c(NA, diff(ODO.mg.L.mn)),        # mg/L per 15-min step
+      rate_of_change_per_interval = c(NA, diff(ODO.mg.L.mn_filled)),        # mg/L per 15-min step
       rate_of_change_hourly = rate_of_change_per_interval * steps_per_hour  # mg/L per hour
     )
   
@@ -60,14 +69,15 @@ calc_ER_event = function(event_df) {
   accrual_duration_hr = length(accrual_idx) * interval_hr
   decline_duration_hr = length(decline_idx) * interval_hr
   
-  # NaN (not NA) is expected here if an event has zero accrual (or zero decline) intervals - i.e. an event that moved only one direction
+  # NaN (not NA) is expected here if an event has zero accrual (or zero
+  # decline) intervals - i.e. an event that moved only one direction
   accrual_rate_hourly = mean(event_df$rate_of_change_hourly[accrual_idx], na.rm = TRUE)
   ER_rate_hourly       = mean(event_df$rate_of_change_hourly[decline_idx], na.rm = TRUE)
   
   accrual_total = sum(event_df$rate_of_change_per_interval[accrual_idx], na.rm = TRUE)
   ER_total       = sum(event_df$rate_of_change_per_interval[decline_idx], na.rm = TRUE)
   
-  # total gross activity over the whole event, regardless of direction: converts it to a magnitude before adding - this is NOT the NET change it's the total amount of O2 that moved (up or down) over the event
+  # total gross activity over the whole event, regardless of direction
   gross_total = accrual_total + abs(ER_total)
   
   accrual_total_areal = accrual_total * z_m
@@ -75,18 +85,19 @@ calc_ER_event = function(event_df) {
   gross_total_areal     = accrual_total_areal + abs(ER_total_areal)
   
   data.frame(
-    accrual_rate_hourly_mgL_hr          = accrual_rate_hourly,       # mg O2/L/hr
-    accrual_duration_hr                 = accrual_duration_hr,       # hr
-    accrual_total_mgL                   = accrual_total,             # mg O2/L (= g/m3), event total, not a rate
-    ER_rate_hourly_mgL_hr               = ER_rate_hourly,            # mg O2/L/hr
-    ER_duration_hr                      = decline_duration_hr,       # hr
-    ER_total_mgL                        = ER_total,                  # mg O2/L (= g/m3), event total, not a rate
-    gross_total_mgL                     = gross_total,               # mg O2/L, total activity magnitude (accrual_total + |ER_total|)
-    accrual_rate_hourly_areal_gO2_m2_hr = accrual_rate_hourly * z_m, # g O2/m2/hr
-    accrual_total_areal_gO2_m2          = accrual_total_areal,       # g O2/m2, event total, not a rate
-    ER_rate_hourly_areal_gO2_m2_hr      = ER_rate_hourly * z_m,      # g O2/m2/hr
-    ER_total_areal_gO2_m2               = ER_total_areal,            # g O2/m2, event total, not a rate
-    gross_total_areal_gO2_m2            = gross_total_areal          # g O2/m2, total activity magnitude
+    accrual_rate_hourly_mgL_hr          = accrual_rate_hourly,
+    accrual_duration_hr                 = accrual_duration_hr,
+    accrual_total_mgL                   = accrual_total,
+    ER_rate_hourly_mgL_hr               = ER_rate_hourly,
+    ER_duration_hr                      = decline_duration_hr,
+    ER_total_mgL                        = ER_total,
+    gross_total_mgL                     = gross_total,
+    accrual_rate_hourly_areal_gO2_m2_hr = accrual_rate_hourly * z_m,
+    accrual_total_areal_gO2_m2          = accrual_total_areal,
+    ER_rate_hourly_areal_gO2_m2_hr      = ER_rate_hourly * z_m,
+    ER_total_areal_gO2_m2               = ER_total_areal,
+    gross_total_areal_gO2_m2            = gross_total_areal,
+    n_gaps_filled                       = sum(event_df$ODO_was_filled, na.rm = TRUE)
   )
 }
 
@@ -157,7 +168,7 @@ write.csv(ER_results, "EXO_compiled/ER_calc_all_events.csv", row.names = FALSE)
 
 #### Summarize carbon respiration by well, across all events for annual rates & total ####
 
-carbon_summary <- ER_results %>%
+carbon_summary = ER_results %>%
   group_by(site) %>%
   summarise(
     n_events = n(),
