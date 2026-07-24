@@ -513,12 +513,6 @@ EXOz.dtw[["VDOW"]]$event <- with (EXOz.dtw[["VDOW"]], ifelse(as.Date(EXOz.dtw[["
                                                                     ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_other, 'other', NA))))
 
 
-# add new column of start/end of each event
-# new vector for each well, one for start one for end, add datetimeMT corresponding to each
-# replot with multiple days, ask about Manuela's code for salt curves
-# data frame of just events, open it and look for inflection points
-# quantifying - do we want to get a difference or integrate under the curve, tbd
-# DO will be integration under curve, DOC maybe difference
 
 #### Create dataframes of just the DO events ####
 
@@ -1503,7 +1497,16 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
 vars_to_plot <- c("ODO.mg.L.mn", "fDOM.QSU.mn", "DTW_m", "Turbidity.FNU.mn", "Temp..C.mn", "SpCond.µS.cm.mn")
 var_labels   <- c("DO (mg/L)", "fDOM (QSU)", "GW Depth (m)", "Turbidity (FNU)", "Temp (°C)", "SpCond (µS/cm)")
 
+get_event_category <- function(dz) {
+  vals <- dz$event[!is.na(dz$event)]
+  if (length(vals) == 0) return("unclassified")
+  names(sort(table(vals), decreasing = TRUE))[1]
+}
+
 plot_all_events_combined <- function(site, event_list, buffer_hours = 3) {
+  
+  # category per event
+  event_types <- sapply(event_list, get_event_category)
   
   # stack all events into one long data frame, each tagged with its own event number
   event_data <- do.call(rbind, lapply(seq_along(event_list), function(i) {
@@ -1520,9 +1523,10 @@ plot_all_events_combined <- function(site, event_list, buffer_hours = 3) {
     tempdat
   }))
   
-  # keep events in numeric order (1, 2, 3...) rather than alphabetical
+  # event column labels include the category, e.g. "Event 1\n(metabolism)"
+  event_labels <- paste0("Event ", seq_along(event_list), "\n(", event_types, ")")
   event_data$event_id <- factor(event_data$event_id, levels = seq_along(event_list),
-                                labels = paste("Event", seq_along(event_list)))
+                                labels = event_labels)
   
   # reshape to long format: one row per variable per timestamp
   long_data <- do.call(rbind, lapply(seq_along(vars_to_plot), function(v) {
