@@ -11,10 +11,11 @@
 
 # NEXT: 
 # Users should use the following run order: 
-# 01_compileEXO.R -> 02_depthtogw.R -> 03_datacompilation.R -> 04_eventdelineation.R
+# 01_compileEXO.R -> 02_depthtogw.R -> 03_datacompilation.R -> 04_eventdelineation.R -> 05_eventcalcs.R
 
 # Scripts overview:
 # 01_compileEXO.R: Compiles 15-min EXO1 sonde data
 # 02_depthtogw.R: Compiles 15-min groundwater depth data
 # 03_datacompilation.R: Combines all data and makes pub-ready plots of full time series
 # 04_eventdelination.R: Delineates individual dissolved oxygen events and makes pub-ready plots of each event
+# 05_eventcalcs.R: Calculates total event size, ecosystem respiration, and accrual metrics for every DO event
