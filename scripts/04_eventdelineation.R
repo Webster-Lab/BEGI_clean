@@ -1,10 +1,20 @@
-#### read me ####
+#### READ ME ####
 
-# the purpose of this script is to delineate respiration events from the compiled EXO1 RDS files in the Webster BEGI project
-# DO and fDOM events are delineated
+# The purpose of this script is to delineate accrual + respiration events from the compiled EXO1 RDS files in the Webster BEGI project
+# DO and fDOM events are delineated as having patterns consistent with several processes:
+# metabolism: DO and fDOM both decline following a DO spike
+# lateral transfer: 
+# other: 
 
-#### libraries ####
-library(googledrive)
+# Requirements: rds files from previous scripts:
+# 1. BEGI_EXOz_dtw.rds
+# 2. service times for each well
+
+# Outputs for downstream use:
+# 1. lists of all DO and fDOM events in each well: BEGI_events.rds
+# 2. "megaplots" of each event showing all sonde data + dtw data for each eventS
+
+#### Libraries ####
 library(tidyverse)
 library(broom)
 library(zoo)
@@ -16,10 +26,20 @@ library(ggplot2)
 library(patchwork)
 library(scales)
 
+#### Check/make file structure ####
+
+# make sure output folders exist before anything tries to write to them
+dir.create("EXO_compiled", recursive = TRUE, showWarnings = FALSE)
+
+siteIDz <- c("VDOW", "VDOS", "SLOW", "SLOC")
+for (i in siteIDz) {
+  dir.create(paste0("plots/delineations/", i, "/events"), recursive = TRUE, showWarnings = FALSE)
+}
+
 #### Import compiled EXO1 RDS file ####
 EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
 
-#### get sunrise/sunset times ####
+#### Get sunrise/sunset times ####
 
 suntimes = getSunlightTimes(date = seq.Date(
   from = as.Date("2023-09-14"), 
@@ -41,6 +61,7 @@ shade_df <- data.frame(
 
 
 #### Read in .csv files of service dates and times ####
+
 service.VDOW = read.csv("EXO_compiled/service.VDOW.csv", row.names = 1)
 names(service.VDOW) = "datetimeMT"
 service.VDOW$datetimeMT = as.POSIXct(service.VDOW$datetimeMT, tz="US/Mountain")
@@ -57,17 +78,7 @@ service.SLOW = read.csv("EXO_compiled/service.SLOW.csv", row.names = 1)
 names(service.SLOW) = "datetimeMT"
 service.SLOW$datetimeMT = as.POSIXct(service.SLOW$datetimeMT, tz="US/Mountain")
 
-# sunrise/sunset
-
-suntimes = 
-  getSunlightTimes(date = seq.Date(from = as.Date("2023-09-14"), to = as.Date("2024-09-5"), by = 1),
-                   keep = c("sunrise", "sunset"),
-                   lat = 34.9, lon = -106.7, tz = "US/Mountain")
-
-pm.pts = suntimes$sunset[-(nrow(suntimes))]
-am.pts = suntimes$sunrise[-1]
-
-#### Vector of dates ####
+#### Make vector of dates ####
 
 date <- (
   datetimeMT = seq.POSIXt(
@@ -77,16 +88,17 @@ date <- (
 
 date = as.Date(date)
 
-#### plot to check ####
-
-#test data
-#i<-date[1]
+#### Plot 24 hr periods for visual inspection ####
+# NOTE: the code below generates a plot for DO and fDOM for every 24 hours so that events can be identified by visual inspection. It is not necessary to run this code to reproduce the rest of the analysis. 
 
 ## SLOC 24 h ##
 for (i in c(1:length(date))) {
   dz = date[i]
-  tempdat = EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["SLOC"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["SLOC"]][
+    EXOz.dtw[["SLOC"]]$datetimeMT > day_start &
+      EXOz.dtw[["SLOC"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/SLOC/SLOC_", dz, ".pdf", sep="")
@@ -118,8 +130,11 @@ for (i in c(1:length(date))) {
 ## SLOW 24 h ##
 for (i in c(1:length(date))) {
   dz = date[i]
-  tempdat = EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["SLOW"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["SLOW"]][
+    EXOz.dtw[["SLOW"]]$datetimeMT > day_start &
+      EXOz.dtw[["SLOW"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/SLOW/SLOW_", dz, ".pdf", sep="")
@@ -151,8 +166,11 @@ for (i in c(1:length(date))) {
 ## VDOW 24 h ##
 for (i in c(1:length(date))) {
   dz = date[i]
-  tempdat = EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["VDOW"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["VDOW"]][
+    EXOz.dtw[["VDOW"]]$datetimeMT > day_start &
+      EXOz.dtw[["VDOW"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/VDOW/VDOW_", dz, ".pdf", sep="")
@@ -184,8 +202,11 @@ for (i in c(1:length(date))) {
 ## VDOS 24 h ##
 for (i in c(1:length(date))) {
   dz = date[i]
-  tempdat = EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["VDOS"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["VDOS"]][
+    EXOz.dtw[["VDOS"]]$datetimeMT > day_start &
+      EXOz.dtw[["VDOS"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/VDOS/VDOS_", dz, ".pdf", sep="")
@@ -214,7 +235,7 @@ for (i in c(1:length(date))) {
   dev.off()
 }
 
-### event dates ####
+#### Identify event dates ####
 
 SLOC_events <- c("2023-10-09","2023-10-10","2023-10-11","2023-10-16","2023-10-17","2023-10-18","2023-11-18","2023-11-21","2023-11-26","2023-12-06","2023-12-18","2023-12-23","2023-12-24","2023-12-25","2023-12-29","2024-01-11","2024-01-12","2024-01-19","2024-01-21","2024-01-22","2024-01-23","2024-01-24","2024-02-10","2024-02-21","2024-03-09","2024-03-17","2024-03-20","2024-04-01","2024-04-02","2024-04-14","2024-04-15","2024-05-23","2024-07-04","2024-07-05","2024-07-13","2024-07-17","2024-08-19","2024-08-26","2024-08-27","2024-08-29","2024-08-30")
 SLOC_events <- as.Date(SLOC_events)
@@ -258,13 +279,18 @@ VDOW_other <- as.Date(VDOW_other)
 #It seems like fDOM starts to decrease significantly over several days after a sonde event. It makes me think that a sonde event introduces enough oxygen into the wells (which wouldn't show up as DO) to spur aerobic respiration/DOC consumption
 
 
-#### Plotting just the events ####
+#### Plot just the events for visual inspection ####
+# NOTE: the code below generates a plot for DO and fDOM for every suspected event for visual inspection. It is not necessary to run this code to reproduce the rest of the analysis. 
+
 
 #SLOC#
 for (i in c(1:length(SLOC_events))) {
   dz = SLOC_events[i]
-  tempdat = EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["SLOC"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["SLOC"]][
+    EXOz.dtw[["SLOC"]]$datetimeMT > day_start &
+      EXOz.dtw[["SLOC"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/SLOC/events/SLOC_", dz, ".pdf", sep="")
@@ -310,8 +336,11 @@ for (i in c(1:length(SLOC_events))) {
 #SLOW#
 for (i in c(1:length(SLOW_events))) {
   dz = SLOW_events[i]
-  tempdat = EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["SLOW"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["SLOW"]][
+    EXOz.dtw[["SLOW"]]$datetimeMT > day_start &
+      EXOz.dtw[["SLOW"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/SLOW/events/SLOW_", dz, ".pdf", sep="")
@@ -357,8 +386,11 @@ for (i in c(1:length(SLOW_events))) {
 #VDOW#
 for (i in c(1:length(VDOW_events))) {
   dz = VDOW_events[i]
-  tempdat = EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["VDOW"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["VDOW"]][
+    EXOz.dtw[["VDOW"]]$datetimeMT > day_start &
+      EXOz.dtw[["VDOW"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/VDOW/events/VDOW_", dz, ".pdf", sep="")
@@ -401,13 +433,14 @@ for (i in c(1:length(VDOW_events))) {
   dev.off()
 }
 
-
-
 #VDOS#
 for (i in c(1:length(VDOS_events))) {
   dz = VDOS_events[i]
-  tempdat = EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT < (as.POSIXct(dz, "00:00:01 MDT") +(60*60*24))&
-                                 EXOz.dtw[["VDOS"]]$datetimeMT > as.POSIXct(dz,"00:00:01 MDT"),]
+  day_start <- as.POSIXct(dz, tz = "US/Mountain") + 1
+  tempdat <- EXOz.dtw[["VDOS"]][
+    EXOz.dtw[["VDOS"]]$datetimeMT > day_start &
+      EXOz.dtw[["VDOS"]]$datetimeMT < day_start + 60*60*24,
+  ]
   
   #save plot 
   file_name = paste("plots/delineations/VDOS/events/VDOS_", dz, ".pdf", sep="")
@@ -452,8 +485,8 @@ for (i in c(1:length(VDOS_events))) {
 
 
 
-#### Adding event column to dataframe ####
-#for every row where event is happening, and column of event code to categorize
+#### Add event column to dataframe ####
+#for every row where event is happening, add column of event code to categorize
 #add column event_type to each well dataframe based on conditions (the date) %in%
 #add column value to r based on condition
 
@@ -461,23 +494,23 @@ for (i in c(1:length(VDOS_events))) {
 ### SLOC ### 
 EXOz.dtw[["SLOC"]]$event <- with (EXOz.dtw[["SLOC"]], ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_mx, 'metabolism',
                                                              ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_other, 'other', 'NA'))))
+                                                                    ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_other, 'other', NA))))
 
 ### SLOW ###
 EXOz.dtw[["SLOW"]]$event <- with (EXOz.dtw[["SLOW"]], ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_mx, 'metabolism',
                                                              ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_other, 'other', 'NA'))))
+                                                                    ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_other, 'other', NA))))
 
 ### VDOS ###
 EXOz.dtw[["VDOS"]]$event <- with (EXOz.dtw[["VDOS"]], ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_mx, 'metabolism',
                                                              ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_other, 'other', 'NA'))))
+                                                                    ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_other, 'other', NA))))
 
 
 ### VDOW ###
 EXOz.dtw[["VDOW"]]$event <- with (EXOz.dtw[["VDOW"]], ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_mx, 'metabolism',
                                                              ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_other, 'other', 'NA'))))
+                                                                    ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_other, 'other', NA))))
 
 
 # add new column of start/end of each event
@@ -487,7 +520,7 @@ EXOz.dtw[["VDOW"]]$event <- with (EXOz.dtw[["VDOW"]], ifelse(as.Date(EXOz.dtw[["
 # quantifying - do we want to get a difference or integrate under the curve, tbd
 # DO will be integration under curve, DOC maybe difference
 
-#### Creating dataframe of just the DO events ####
+#### Create dataframes of just the DO events ####
 
 #SLOC#
 
@@ -748,7 +781,7 @@ for (i in seq_along(VDOS_DO)){
   VDOS_dates<-c(VDOS_dates,temptime)
 }
 
-#### Dataframes fDOM events ####
+#### Create dataframes of fDOM events ####
 
 ##SLOC##
 
@@ -1086,361 +1119,17 @@ names(BEGI_events)<-c('DO_events','fDOM_events','Eventdate')
 
 #save list
 saveRDS(BEGI_events,"EXO_compiled/BEGI_events.rds")
-#rm(list = ls())
 
-#### Import data to plot all events ####
+#### Plot all DO events with complementary data (megaplots) ####
+
 #import BEGI events (with tc data)
 BEGI_events = readRDS("EXO_compiled/BEGI_events.rds")
 
 #import compiled DTW and EXOz.dtw
 EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
 
-#Define shaded am/pm
-shade_df <- data.frame(
-  xmin = pm.pts,
-  xmax = am.pts,
-  ymin = -Inf,
-  ymax = Inf
-)
 
-
-
-#### Plot all SLOC events####
-
-for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
-  dz <- BEGI_events[["DO_events"]][["SLOC_DO"]][[i]]
-  
-  #Time window: 2 days before event to event end
-  start_time <- min(dz$datetimeMT, na.rm = TRUE) - 60*60*50
-  end_time <- max(dz$datetimeMT, na.rm = TRUE) + 60*60
-  
-  #Subset data
-  tempdat <- EXOz.dtw[["SLOC"]][
-    EXOz.dtw[["SLOC"]]$datetimeMT >= start_time &
-      EXOz.dtw[["SLOC"]]$datetimeMT <= end_time, ]
-  
-  #Plots
-  g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "DO (mg/l)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g2 <- ggplot(tempdat, aes(x = datetimeMT, y = fDOM.QSU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() +labs(y = "fDOM (QSU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  
-  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "GW Depth (m)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g4 <- ggplot(tempdat, aes(x = datetimeMT, y = Turbidity.FNU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs (y = "Turbidity (FNU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g5 <- ggplot(tempdat, aes(x = datetimeMT, y = Temp..C.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "Temp (°C)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g6 <- ggplot(tempdat, aes(x = datetimeMT, y = SpCond.µS.cm.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    labs(y = "SpCond (µS/cm)", x = "Datetime") +
-    geom_line(na.rm = TRUE) + theme_minimal() +
-    theme( plot.title = element_blank(), plot.margin = margin(0, 5, 0, 5))
-  
-  # Combine with patchwork
-  full_plot <- g1 / g2 / g3 / g4 / g5 / g6 +
-    plot_layout(ncol = 1, heights = rep(1, 6)) & 
-    theme(axis.title.y = element_text(angle = 90, vjust = 0.5))
-  
-  # Save
-  ggsave(
-    filename = paste0("plots/delineations/SLOC/events/SLOC_event_", i, ".pdf"),
-    plot = full_plot,
-    width = 6, height = 11 
-  )
-}
-
-
-#### Plot all SLOW events####
-
-for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
-  dz <- BEGI_events[["DO_events"]][["SLOW_DO"]][[i]]
-  
-  #Time window: 2 days before event to event end
-  start_time <- min(dz$datetimeMT, na.rm = TRUE) - 60*60*50
-  end_time <- max(dz$datetimeMT, na.rm = TRUE) + 60*60
-  
-  #Subset data
-  tempdat <- EXOz.dtw[["SLOW"]][
-    EXOz.dtw[["SLOW"]]$datetimeMT >= start_time &
-      EXOz.dtw[["SLOW"]]$datetimeMT <= end_time, ]
-
-  #Plots
-  g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "DO (mg/l)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g2 <- ggplot(tempdat, aes(x = datetimeMT, y = fDOM.QSU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() +labs(y = "fDOM (QSU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  
-  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "GW Depth (m)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g4 <- ggplot(tempdat, aes(x = datetimeMT, y = Turbidity.FNU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs (y = "Turbidity (FNU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g5 <- ggplot(tempdat, aes(x = datetimeMT, y = Temp..C.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "Temp (°C)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g6 <- ggplot(tempdat, aes(x = datetimeMT, y = SpCond.µS.cm.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.SLOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    labs(y = "SpCond (µS/cm)", x = "Datetime") +
-    geom_line(na.rm = TRUE) + theme_minimal() +
-    theme( plot.title = element_blank(), plot.margin = margin(0, 5, 0, 5))
-  
-  # Combine with patchwork
-  full_plot <- g1 / g2 / g3 / g4 / g5 / g6 +
-    plot_layout(ncol = 1, heights = rep(1, 6)) & 
-    theme(axis.title.y = element_text(angle = 90, vjust = 0.5))
-  
-  # Save
-  ggsave(
-    filename = paste0("plots/delineations/SLOW/events/SLOW_event_", i, ".pdf"),
-    plot = full_plot,
-    width = 6, height = 11 
-  )
-}
-
-#### Plot all VDOW events####
-
-for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
-  dz <- BEGI_events[["DO_events"]][["VDOW_DO"]][[i]]
-  
-  #Time window: 2 days before event to event end
-  start_time <- min(dz$datetimeMT, na.rm = TRUE) - 60*60*50
-  end_time <- max(dz$datetimeMT, na.rm = TRUE) + 60*60
-  
-  #Subset data
-  tempdat <- EXOz.dtw[["VDOW"]][
-    EXOz.dtw[["VDOW"]]$datetimeMT >= start_time &
-      EXOz.dtw[["VDOW"]]$datetimeMT <= end_time, ]
-
-  #Plots
-  g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "DO (mg/l)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g2 <- ggplot(tempdat, aes(x = datetimeMT, y = fDOM.QSU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() +labs(y = "fDOM (QSU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  
-  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "GW Depth (m)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g4 <- ggplot(tempdat, aes(x = datetimeMT, y = Turbidity.FNU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs (y = "Turbidity (FNU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g5 <- ggplot(tempdat, aes(x = datetimeMT, y = Temp..C.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "Temp (°C)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g6 <- ggplot(tempdat, aes(x = datetimeMT, y = SpCond.µS.cm.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOW$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    labs(y = "SpCond (µS/cm)", x = "Datetime") +
-    geom_line(na.rm = TRUE) + theme_minimal() +
-    theme( plot.title = element_blank(), plot.margin = margin(0, 5, 0, 5))
-  
-  # Combine with patchwork
-  full_plot <- g1 / g2 / g3 / g4 / g5 / g6 +
-    plot_layout(ncol = 1, heights = rep(1, 6)) & 
-    theme(axis.title.y = element_text(angle = 90, vjust = 0.5))
-  
-  # Save
-  ggsave(
-    filename = paste0("plots/delineations/VDOW/events/VDOW_event_", i, ".pdf"),
-    plot = full_plot,
-    width = 6, height = 11 
-  )
-}
-
-#### Plot all VDOS events####
-
-for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
-  dz <- BEGI_events[["DO_events"]][["VDOS_DO"]][[i]]
-  
-  #Time window: 2 days before event to event end
-  start_time <- min(dz$datetimeMT, na.rm = TRUE) - 60*60*50
-  end_time <- max(dz$datetimeMT, na.rm = TRUE) + 60*60
-  
-  #Subset data
-  tempdat <- EXOz.dtw[["VDOS"]][
-    EXOz.dtw[["VDOS"]]$datetimeMT >= start_time &
-      EXOz.dtw[["VDOS"]]$datetimeMT <= end_time, ]
-  
-  #Plots
-  g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "DO (mg/l)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g2 <- ggplot(tempdat, aes(x = datetimeMT, y = fDOM.QSU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() +labs(y = "fDOM (QSU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  
-  g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "GW Depth (m)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g4 <- ggplot(tempdat, aes(x = datetimeMT, y = Turbidity.FNU.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs (y = "Turbidity (FNU)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g5 <- ggplot(tempdat, aes(x = datetimeMT, y = Temp..C.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "Temp (°C)") +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
-          plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
-  
-  g6 <- ggplot(tempdat, aes(x = datetimeMT, y = SpCond.µS.cm.mn)) +
-    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
-    geom_vline(xintercept = as.POSIXct(service.VDOS$datetimeMT), color = "red", linetype = "dashed") +
-    scale_x_datetime(limits = c(start_time, end_time)) +
-    labs(y = "SpCond (µS/cm)", x = "Datetime") +
-    geom_line(na.rm = TRUE) + theme_minimal() +
-    theme( plot.title = element_blank(), plot.margin = margin(0, 5, 0, 5))
-  
-  # Combine with patchwork
-  full_plot <- g1 / g2 / g3 / g4 / g5 / g6 +
-    plot_layout(ncol = 1, heights = rep(1, 6)) & 
-    theme(axis.title.y = element_text(angle = 90, vjust = 0.5))
-  
-  # Save
-  ggsave(
-    filename = paste0("plots/delineations/VDOS/events/VDOS_event_", i, ".pdf"),
-    plot = full_plot,
-    width = 6, height = 11 
-  )
-}
-
-#### Plot ALL DO events (megaplots) ####
-
-# SLOC
+# generate plot for each event in SLOC
 for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   
   dz <- BEGI_events[["DO_events"]][["SLOC_DO"]][[i]]
@@ -1464,8 +1153,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   
   #Plots
   g1 <- ggplot(tempdat, aes(x = datetimeMT, y = ODO.mg.L.mn)) + 
-    #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #          inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time)) +
     geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "DO (mg/l)") +
@@ -1474,8 +1163,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   #geom_line(data=tempdatDOe, aes(x = datetimeMT, y = ODO.mg.L.mn), color="yellow", linewidth=5, alpha=.5)
   
   g2 <- ggplot(tempdat, aes(x = datetimeMT, y = fDOM.QSU.mn)) +
-    #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #          inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+              inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time)) +
     geom_line(na.rm = TRUE) + theme_minimal() +labs(y = "fDOM (QSU)") +
@@ -1484,8 +1173,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   
   
   g3 <- ggplot(tempdat, aes(x = datetimeMT, y = -DTW_m)) +
-    #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #         inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time)) +
     geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "GW Depth (m)") +
@@ -1493,8 +1182,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   g4 <- ggplot(tempdat, aes(x = datetimeMT, y = Turbidity.FNU.mn)) +
-    # geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #          inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+             inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time)) +
     geom_line(na.rm = TRUE) + theme_minimal() + labs (y = "Turbidity (FNU)") +
@@ -1502,8 +1191,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   g5 <- ggplot(tempdat, aes(x = datetimeMT, y = Temp..C.mn)) +
-    #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #         inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time)) +
     geom_line(na.rm = TRUE) + theme_minimal() + labs(y = "Temp (°C)") +
@@ -1511,8 +1200,8 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
           plot.title = element_blank(),plot.margin = margin(0, 5, 0, 5))
   
   g6 <- ggplot(tempdat, aes(x = datetimeMT, y = SpCond.µS.cm.mn)) +
-    #geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-    #         inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
+    geom_rect(data = shade_df, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            inherit.aes = FALSE, fill = "lightgrey", alpha = 0.5) +
     geom_vline(xintercept = as.POSIXct(service.SLOC$datetimeMT), color = "red", linetype = "dashed") +
     scale_x_datetime(limits = c(start_time, end_time),
                      date_labels = "%b %d %H:%M") +
@@ -1533,7 +1222,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOC_DO"]])) {
   )
 }
 
-# SLOW
+# generate plot for each event in SLOW
 for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
   
   dz <- BEGI_events[["DO_events"]][["SLOW_DO"]][[i]]
@@ -1625,7 +1314,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["SLOW_DO"]])) {
   )
 }
 
-# VDOW
+# generate plot for each event in VDOW
 for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
   
   dz <- BEGI_events[["DO_events"]][["VDOW_DO"]][[i]]
@@ -1717,7 +1406,7 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOW_DO"]])) {
   )
 }
 
-# VDOS
+# generate plot for each event in VDOS
 for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
   
   dz <- BEGI_events[["DO_events"]][["VDOS_DO"]][[i]]
@@ -1808,3 +1497,73 @@ for (i in seq_along(BEGI_events[["DO_events"]][["VDOS_DO"]])) {
     width = 6, height = 11 
   )
 }
+
+#### Combine all events for a well into one mega-megaplot multi-panel summary figure per well ####
+
+vars_to_plot <- c("ODO.mg.L.mn", "fDOM.QSU.mn", "DTW_m", "Turbidity.FNU.mn", "Temp..C.mn", "SpCond.µS.cm.mn")
+var_labels   <- c("DO (mg/L)", "fDOM (QSU)", "GW Depth (m)", "Turbidity (FNU)", "Temp (°C)", "SpCond (µS/cm)")
+
+plot_all_events_combined <- function(site, event_list, buffer_hours = 3) {
+  
+  # stack all events into one long data frame, each tagged with its own event number
+  event_data <- do.call(rbind, lapply(seq_along(event_list), function(i) {
+    dz <- event_list[[i]]
+    start_time <- min(dz$datetimeMT, na.rm = TRUE) - 3600 * buffer_hours
+    end_time   <- max(dz$datetimeMT, na.rm = TRUE) + 3600 * buffer_hours
+    
+    tempdat <- EXOz.dtw[[site]][
+      EXOz.dtw[[site]]$datetimeMT >= start_time &
+        EXOz.dtw[[site]]$datetimeMT <= end_time, ]
+    
+    tempdat$event_id <- i
+    tempdat$DTW_m_neg <- -tempdat$DTW_m
+    tempdat
+  }))
+  
+  # keep events in numeric order (1, 2, 3...) rather than alphabetical
+  event_data$event_id <- factor(event_data$event_id, levels = seq_along(event_list),
+                                labels = paste("Event", seq_along(event_list)))
+  
+  # reshape to long format: one row per variable per timestamp
+  long_data <- do.call(rbind, lapply(seq_along(vars_to_plot), function(v) {
+    col <- if (vars_to_plot[v] == "DTW_m") "DTW_m_neg" else vars_to_plot[v]
+    data.frame(
+      event_id = event_data$event_id,
+      datetimeMT = event_data$datetimeMT,
+      variable = var_labels[v],
+      value = event_data[[col]]
+    )
+  }))
+  long_data$variable <- factor(long_data$variable, levels = var_labels)
+  
+  fig <- ggplot(long_data, aes(x = datetimeMT, y = value)) +
+    geom_line(na.rm = TRUE) +
+    facet_grid(variable ~ event_id, scales = "free", switch = "y") +
+    labs(x = NULL, y = NULL) +
+    theme_bw() +
+    theme(strip.text.y.left = element_text(angle = 0),
+          strip.placement   = "outside",
+          panel.spacing     = unit(0.3, "lines"),
+          axis.text.x       = element_text(size = 6, angle = 45, hjust = 1),
+          strip.text        = element_text(size = 8))
+  
+  ggsave(paste0("plots/delineations/", site, "/", site, "_all_events_combined.pdf"),
+         fig, width = 2 * length(event_list) + 2, height = 10, limitsize = FALSE)
+  
+  fig
+}
+
+plot_all_events_combined("SLOC", BEGI_events[["DO_events"]][["SLOC_DO"]])
+plot_all_events_combined("SLOW", BEGI_events[["DO_events"]][["SLOW_DO"]])
+plot_all_events_combined("VDOW", BEGI_events[["DO_events"]][["VDOW_DO"]])
+plot_all_events_combined("VDOS", BEGI_events[["DO_events"]][["VDOS_DO"]])
+
+#### Clear 24hr and individual event plots, keep only megaplots ####
+
+all_plots <- list.files("plots/delineations", recursive = TRUE, full.names = TRUE, pattern = "\\.pdf$")
+
+# keep individual megaplots (SITE_megaplot_v3_#.pdf) and the combined summary megaplot (SITE_all_events_combined.pdf); everything else (24hr plots and individual event plots) gets removed
+keep <- grepl("megaplot_v3", all_plots) | grepl("all_events_combined", all_plots)
+
+to_remove <- all_plots[!keep]
+file.remove(to_remove)

@@ -2,6 +2,14 @@
 #the purpose of this script is to compile depth to gw and sonde data into one RDS file to use in subsequent scripts
 # this script also cleans dissolved oxygen data to remove outliers and adjust baselines to be consistent among sondes
 
+# Requirements: rds files from previous scripts
+# 1. BEGI_PT_DTW_all.rds
+# 2. BEGI_EXO.or2.rds
+
+# Outputs for downstream use:
+# 1. A list of dataframes (one for each well) with all EXO, well depth, and river discharge combined: BEGI_EXOz_dtw.rds
+# 2. A multi-panel timeseries plot of dissolved oxygen in all 4 wells: "ODO_timeseries_allwells.png"
+
 #### Libraries ####
 library(tidyverse)
 library(broom)
@@ -22,7 +30,7 @@ BEGI_PT_DTW_trim <- BEGI_PT_DTW_all[BEGI_PT_DTW_all$datetimeMT >= "2023-09-15 00
                                     & BEGI_PT_DTW_all$datetimeMT <= "2024-09-04 00:00:00",]
 
 
-#### Import temp corrected sonde data ####
+#### Import temp-corrected sonde data ####
 EXOz.or2 = readRDS("EXO_compiled/BEGI_EXO.or2.rds")
 
 #### Make gw depth dataframe for each well ####
@@ -213,11 +221,3 @@ ODO_fig <-
 ggsave("plots/ODO_timeseries_allwells.png", ODO_fig, width = 11, height = 8, units = "in", dpi = 300)
 
 
-#### Clear all Google Drive files from local folder to end fresh ####
-
-googledrive_files <- list.files("googledrive", full.names = TRUE, recursive = TRUE)
-if (length(googledrive_files) > 0) {
-  file.remove(googledrive_files)
-}
-
-# now that your environment is cleaned up, now is a good time to save, commit, push/pull, and restart the R session to get ready for the next script in the workflow!
