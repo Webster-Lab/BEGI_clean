@@ -1,10 +1,6 @@
 #### READ ME ####
 
 # The purpose of this script is to delineate accrual + respiration events from the compiled EXO1 RDS files in the Webster BEGI project
-# DO and fDOM events are delineated as having patterns consistent with several processes:
-# metabolism: DO and fDOM both decline following a DO spike
-# lateral transfer: 
-# other: 
 
 # Requirements: rds files from previous scripts:
 # 1. BEGI_EXOz_dtw.rds
@@ -239,45 +235,15 @@ for (i in c(1:length(date))) {
 
 SLOC_events <- c("2023-10-09","2023-10-10","2023-10-11","2023-10-16","2023-10-17","2023-10-18","2023-11-18","2023-11-21","2023-11-26","2023-12-06","2023-12-18","2023-12-23","2023-12-24","2023-12-25","2023-12-29","2024-01-11","2024-01-12","2024-01-19","2024-01-21","2024-01-22","2024-01-23","2024-01-24","2024-02-10","2024-02-21","2024-03-09","2024-03-17","2024-03-20","2024-04-01","2024-04-02","2024-04-14","2024-04-15","2024-05-23","2024-07-04","2024-07-05","2024-07-13","2024-07-17","2024-08-19","2024-08-26","2024-08-27","2024-08-29","2024-08-30")
 SLOC_events <- as.Date(SLOC_events)
-#metabolism
-SLOC_mx <- c("2023-10-09","2023-10-10","2023-10-11","2023-11-26","2023-12-06","2023-12-18","2023-12-23","2023-12-24","2023-12-25","2024-01-19","2024-01-21","2024-01-22","2024-01-23","2024-01-24","2024-02-10","2024-02-21","2024-03-20","2024-04-14","2024-04-15","2024-05-23","2024-07-17")
-SLOC_mx <- as.Date(SLOC_mx)
-#lateral transfer
-SLOC_lt <- c("2024-01-11","2024-01-12","2024-03-09","2024-03-17","2024-04-01","2024-04-02","2024-07-04","2024-07-05","2024-07-13","2024-08-26","2024-08-27","2024-08-29","2024-08-30")
-SLOC_lt <- as.Date(SLOC_lt)
-#other
-SLOC_other <- c("2023-10-16","2023-10-17","2023-10-18","2023-11-18","2023-11-21","2023-12-29","2024-08-19")
-SLOC_other <- as.Date(SLOC_other)
 
 SLOW_events <- c("2023-09-20","2023-10-16","2023-11-21","2023-12-18","2023-12-25","2023-12-26","2023-12-27","2023-12-28","2023-12-29","2024-01-19","2024-02-10","2024-02-11","2024-02-21","2024-03-20","2024-04-24","2024-04-25","2024-04-26","2024-04-27","2024-04-28","2024-05-14","2024-06-30","2024-07-13","2024-07-17","2024-07-22","2024-08-19")
 SLOW_events <- as.Date(SLOW_events)
-SLOW_mx <- c("2023-10-16","2023-11-21","2023-12-18","2023-12-25","2023-12-26","2023-12-27","2023-12-28","2023-12-29","2024-01-19","2024-02-21","2024-04-24","2024-04-25","2024-04-26","2024-04-27","2024-04-28","2024-07-17","2024-08-19")
-SLOW_mx <- as.Date(SLOW_mx)
-SLOW_lt <- c("2024-02-10","2024-02-11","2024-06-30","2024-07-13","2024-07-22")
-SLOW_lt <- as.Date(SLOW_lt)
-SLOW_other <- c("2023-09-20","2024-03-20","2024-05-14")
-SLOW_other <- as.Date(SLOW_other)
 
 VDOS_events <- c("2023-09-21","2023-09-22","2023-10-10","2023-10-16","2023-10-25","2023-10-26","2023-10-28","2023-10-29","2023-11-03","2023-11-04","2023-11-04","2023-11-11","2023-11-12","2023-11-13","2023-11-14","2023-11-15","2023-11-16","2023-11-17","2023-11-25","2023-11-27","2023-11-29","2023-11-30","2024-02-21","2024-04-17","2024-05-23","2024-06-12","2024-07-10","2024-07-11","2024-07-12","2024-07-13","2024-07-14","2024-07-16","2024-07-17","2024-07-18","2024-08-07","2024-08-08","2024-08-09","2024-08-10","2024-08-11","2024-08-12","2024-08-19")
 VDOS_events <- as.Date(VDOS_events)
-VDOS_mx <- c("2023-10-16","2023-10-25","2023-10-26","2023-10-28","2023-10-29","2023-11-03","2023-11-04","2023-11-11","2023-11-12","2023-11-13","2023-11-14","2023-11-15","2023-11-16","2023-11-17","2023-11-25","2023-11-30","2024-02-21","2024-04-17","2024-05-23","2024-06-12","2024-07-10","2024-07-11","2024-07-12","2024-07-13","2024-07-14","2024-07-16","2024-07-17","2024-07-18","2024-08-07","2024-08-08","2024-08-09","2024-08-10","2024-08-11","2024-08-12","2024-08-19")
-VDOS_mx <- as.Date(VDOS_mx)
-VDOS_lt <- c()
-VDOS_lt <- as.Date(VDOS_lt)
-VDOS_other <- c("2023-09-21","2023-09-22","2023-11-27","2023-11-29")
-VDOS_other <- as.Date(VDOS_other)
 
 VDOW_events <- c("2023-09-17","2023-09-18","2023-09-19","2023-09-30","2023-10-01","2023-10-02","2023-10-03","2023-10-04","2023-10-05","2023-10-06","2023-10-07","2023-10-11","2023-10-16","2023-10-17","2023-10-17","2023-11-02","2023-11-03","2023-11-04","2023-11-05","2023-11-06","2023-11-18","2023-11-19","2023-11-20","2023-11-21","2023-11-22","2023-11-27","2023-11-28","2023-11-29","2023-12-04","2023-12-05","2023-12-18","2023-12-19","2024-02-21","2024-02-22","2024-02-23","2024-02-24","2024-02-25","2024-02-26","2024-02-27","2024-02-28","2024-02-29","2024-02-21","2024-03-06","2024-03-07","2024-03-08","2024-03-09","2024-03-10","2024-03-20","2024-03-21","2024-03-22","2024-04-17","2024-05-14","2024-05-15","2024-05-23","2024-05-24","2024-06-17","2024-06-18","2024-06-19","2024-07-17","2024-07-18","2024-08-19","2024-08-20")
 VDOW_events <- as.Date(VDOW_events)
-VDOW_mx <- c("2023-09-17","2023-09-18","2023-09-19","2023-10-16","2023-10-17","2023-11-02","2023-11-03","2023-11-04","2023-11-05","2023-11-06","2023-11-20","2023-11-21","2023-11-22","2023-11-27","2023-11-28","2023-11-29","2023-12-04","2023-12-05","2023-12-18","2023-12-19","2024-02-21","2024-02-22","2024-02-23","2024-02-24","2024-02-25","2024-02-26","2024-02-27","2024-02-28","2024-02-29","2024-03-06","2024-03-07","2024-03-08","2024-03-09","2024-03-10","2024-03-20","2024-03-21","2024-03-22","2024-06-17","2024-06-18","2024-06-19","2024-07-17","2024-07-18","2024-08-19","2024-08-20")
-VDOW_mx <- as.Date(VDOW_mx)
-VDOW_lt <- c()
-VDOW_lt <- as.Date(VDOW_lt)
-VDOW_other <- c("2023-09-30","2023-10-01","2023-10-02","2023-10-03","2023-10-04","2023-10-05","2023-10-06","2023-10-07","2023-10-11","2023-11-18","2023-11-19","2024-04-17","2024-05-14","2024-05-15","2024-05-23","2024-05-24")
-VDOW_other <- as.Date(VDOW_other)
-#pulse of fDOM and turbidity in VDOW 11/2023
-#It seems like fDOM starts to decrease significantly over several days after a sonde event. It makes me think that a sonde event introduces enough oxygen into the wells (which wouldn't show up as DO) to spur aerobic respiration/DOC consumption
-
 
 #### Plot just the events for visual inspection ####
 # NOTE: the code below generates a plot for DO and fDOM for every suspected event for visual inspection. It is not necessary to run this code to reproduce the rest of the analysis. 
@@ -482,35 +448,6 @@ for (i in c(1:length(VDOS_events))) {
   
   dev.off()
 }
-
-
-
-#### Add event column to dataframe ####
-#for every row where event is happening, add column of event code to categorize
-#add column event_type to each well dataframe based on conditions (the date) %in%
-#add column value to r based on condition
-
-
-### SLOC ### 
-EXOz.dtw[["SLOC"]]$event <- with (EXOz.dtw[["SLOC"]], ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_mx, 'metabolism',
-                                                             ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["SLOC"]]$datetimeMT) %in% SLOC_other, 'other', NA))))
-
-### SLOW ###
-EXOz.dtw[["SLOW"]]$event <- with (EXOz.dtw[["SLOW"]], ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_mx, 'metabolism',
-                                                             ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["SLOW"]]$datetimeMT) %in% SLOW_other, 'other', NA))))
-
-### VDOS ###
-EXOz.dtw[["VDOS"]]$event <- with (EXOz.dtw[["VDOS"]], ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_mx, 'metabolism',
-                                                             ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["VDOS"]]$datetimeMT) %in% VDOS_other, 'other', NA))))
-
-
-### VDOW ###
-EXOz.dtw[["VDOW"]]$event <- with (EXOz.dtw[["VDOW"]], ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_mx, 'metabolism',
-                                                             ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_lt, 'lateral transfer',
-                                                                    ifelse(as.Date(EXOz.dtw[["VDOW"]]$datetimeMT) %in% VDOW_other, 'other', NA))))
 
 
 
@@ -775,328 +712,6 @@ for (i in seq_along(VDOS_DO)){
   VDOS_dates<-c(VDOS_dates,temptime)
 }
 
-#### Create dataframes of fDOM events ####
-
-##SLOC##
-
-SLOC_fDOM1= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-08 18:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-09 11:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM2= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-09 21:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-10 09:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM3= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-10 21:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-11 07:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM4= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-10-16 14:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-10-18 09:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM5= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-11-17 17:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-11-18 04:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM6= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-11-25 21:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-11-26 12:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM7= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-05 17:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-05 18:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM8= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-18 10:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-18 12:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM9= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-22 17:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-25 16:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM10= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2023-12-29 00:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2023-12-29 13:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM11= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-01-11 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-01-11 18:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM12= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-01-12 11:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-01-12 15:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM13= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-01-19 12:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-01-19 15:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM14= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-01-20 23:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-01-24 07:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM15= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-02-10 13:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-02-10 16:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM16= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-02-21 10:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-02-21 15:30:00",tz= "US/Mountain"),]
-
-SLOC_fDOM17= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-03-08 20:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-03-09 12:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM18= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-03-16 18:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-03-17 14:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM19= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-03-20 10:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-03-20 14:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM20= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-04-01 08:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-04-02 03:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM21= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-04-14 00:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-04-15 13:30:00",tz= "US/Mountain"),]
-
-SLOC_fDOM22= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-05-23 10:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-05-23 14:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM23= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-07-04 06:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-07-05 17:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM24= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-07-12 18:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-07-13 06:30:00",tz= "US/Mountain"),]
-
-SLOC_fDOM25= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-07-17 13:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-07-17 17:15:00",tz= "US/Mountain"),]
-
-SLOC_fDOM26= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-08-19 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-08-19 17:45:00",tz= "US/Mountain"),]
-
-SLOC_fDOM27= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-08-25 19:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-08-27 07:00:00",tz= "US/Mountain"),]
-
-SLOC_fDOM28= EXOz.dtw[["SLOC"]][EXOz.dtw[["SLOC"]]$datetimeMT >= as.POSIXct("2024-08-29 09:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOC"]]$datetimeMT <= as.POSIXct("2024-08-30 06:45:00",tz= "US/Mountain"),]
-
-#compile list 
-SLOC_fDOM <- list(SLOC_fDOM1,SLOC_fDOM2,SLOC_fDOM3,SLOC_fDOM4,SLOC_fDOM5,SLOC_fDOM6,SLOC_fDOM7,SLOC_fDOM8,SLOC_fDOM9,SLOC_fDOM10,
-                  SLOC_fDOM11,SLOC_fDOM12,SLOC_fDOM13,SLOC_fDOM14,SLOC_fDOM15,SLOC_fDOM16,SLOC_fDOM17,SLOC_fDOM18,SLOC_fDOM19,SLOC_fDOM20,
-                  SLOC_fDOM21,SLOC_fDOM22,SLOC_fDOM23,SLOC_fDOM24,SLOC_fDOM25,SLOC_fDOM26,SLOC_fDOM27,SLOC_fDOM28)
-names(SLOC_fDOM)<-c('SLOC_fDOM1','SLOC_fDOM2','SLOC_fDOM3','SLOC_fDOM4','SLOC_fDOM5','SLOC_fDOM6','SLOC_fDOM7','SLOC_fDOM8','SLOC_fDOM9','SLOC_fDOM10',
-                    'SLOC_fDOM11','SLOC_fDOM12','SLOC_fDOM13','SLOC_fDOM14','SLOC_fDOM15','SLOC_fDOM16','SLOC_fDOM17','SLOC_fDOM18','SLOC_fDOM19','SLOC_fDOM20',
-                    'SLOC_fDOM21','SLOC_fDOM22','SLOC_fDOM23','SLOC_fDOM24','SLOC_fDOM25','SLOC_fDOM26','SLOC_fDOM27','SLOC_fDOM28')
-
-##SLOW##
-
-SLOW_fDOM1= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-09-20 10:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-09-20 12:30:00",tz= "US/Mountain"),]
-
-SLOW_fDOM2= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-10-16 14:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-10-16 16:15:00",tz= "US/Mountain"),]
-
-SLOW_fDOM3= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-11-21 16:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-11-21 17:00:00",tz= "US/Mountain"),]
-
-SLOW_fDOM4= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-12-18 10:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-12-18 12:00:00",tz= "US/Mountain"),]
-
-SLOW_fDOM5= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2023-12-24 17:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2023-12-29 03:15:00",tz= "US/Mountain"),]
-
-SLOW_fDOM6= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-01-19 12:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-01-19 14:45:00",tz= "US/Mountain"),]
-
-SLOW_fDOM7= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-02-10 13:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-02-11 03:30:00",tz= "US/Mountain"),]
-
-SLOW_fDOM8= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-02-21 10:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-02-21 12:00:00",tz= "US/Mountain"),]
-
-SLOW_fDOM9= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-04-23 18:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-04-28 17:30:00",tz= "US/Mountain"),]
-
-SLOW_fDOM10= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-06-29 20:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-06-30 04:15:00",tz= "US/Mountain"),]
-
-SLOW_fDOM11= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-07-12 18:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-07-13 11:00:00",tz= "US/Mountain"),]
-
-SLOW_fDOM12= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-07-17 14:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-07-17 16:30:00",tz= "US/Mountain"),]
-
-SLOW_fDOM13= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-07-21 19:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-07-22 04:15:00",tz= "US/Mountain"),]
-
-SLOW_fDOM14= EXOz.dtw[["SLOW"]][EXOz.dtw[["SLOW"]]$datetimeMT >= as.POSIXct("2024-08-19 10:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["SLOW"]]$datetimeMT <= as.POSIXct("2024-08-19 17:15:00",tz= "US/Mountain"),]
-
-#compile list
-SLOW_fDOM<-list(SLOW_fDOM1,SLOW_fDOM2,SLOW_fDOM3,SLOW_fDOM4,SLOW_fDOM5,SLOW_fDOM6,SLOW_fDOM7,SLOW_fDOM8,SLOW_fDOM9,SLOW_fDOM10,
-                SLOW_fDOM11,SLOW_fDOM12,SLOW_fDOM13,SLOW_fDOM14)
-names(SLOW_fDOM)<-c('SLOW_fDOM1','SLOW_fDOM2','SLOW_fDOM3','SLOW_fDOM4','SLOW_fDOM5','SLOW_fDOM6','SLOW_fDOM7','SLOW_fDOM8','SLOW_fDOM9','SLOW_fDOM10',
-                    'SLOW_fDOM11','SLOW_fDOM12','SLOW_fDOM13','SLOW_fDOM14')
-
-
-
-##VDOW##
-
-VDOW_fDOM1= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-09-17 02:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-09-19 10:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM2= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-09-29 19:00:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-02 00:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM3= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-02 15:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-05 16:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM4= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-05 17:00:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-06 07:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM5= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-07 08:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-07 15:30:00",tz= "US/Mountain"),]
-
-VDOW_fDOM6= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-11 14:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-11 17:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM7= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-10-16 14:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-10-17 16:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM8= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-02 21:00:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-03 00:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM9= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-03 18:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-04 11:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM10= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-04 19:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-06 15:30:00",tz= "US/Mountain"),]
-
-VDOW_fDOM11= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-18 12:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-18 17:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM12= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-19 17:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-20 14:30:00",tz= "US/Mountain"),]
-
-VDOW_fDOM13= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-20 14:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-21 10:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM14= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-21 17:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-22 12:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM15= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-27 00:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-28 10:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM16= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-28 10:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-29 07:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM17= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-11-29 10:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-11-29 16:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM18= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-12-04 04:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-12-04 23:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM19= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2023-12-18 09:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2023-12-19 09:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM20= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-02-21 13:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-02-29 06:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM21= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-03-05 20:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-03-10 15:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM22= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-03-20 10:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-03-22 07:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM23= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-04-17 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-04-17 17:15:00",tz= "US/Mountain"),]
-
-VDOW_fDOM24= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-05-14 14:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-05-15 06:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM25= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-05-23 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-05-23 21:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM26= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-06-17 13:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-06-19 11:45:00",tz= "US/Mountain"),]
-
-VDOW_fDOM27= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-07-17 07:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-07-18 13:00:00",tz= "US/Mountain"),]
-
-VDOW_fDOM28= EXOz.dtw[["VDOW"]][EXOz.dtw[["VDOW"]]$datetimeMT >= as.POSIXct("2024-08-19 09:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOW"]]$datetimeMT <= as.POSIXct("2024-08-19 23:45:00",tz= "US/Mountain"),]
-
-#compile list
-VDOW_fDOM<-list(VDOW_fDOM1,VDOW_fDOM2,VDOW_fDOM3,VDOW_fDOM4,VDOW_fDOM5,VDOW_fDOM6,VDOW_fDOM7,VDOW_fDOM8,VDOW_fDOM9,VDOW_fDOM10,
-                VDOW_fDOM11,VDOW_fDOM12,VDOW_fDOM13,VDOW_fDOM14,VDOW_fDOM15,VDOW_fDOM16,VDOW_fDOM17,VDOW_fDOM18,VDOW_fDOM19,VDOW_fDOM20,
-                VDOW_fDOM21,VDOW_fDOM22,VDOW_fDOM23,VDOW_fDOM24,VDOW_fDOM25,VDOW_fDOM26,VDOW_fDOM27,VDOW_fDOM28)
-names(VDOW_fDOM)<-c('VDOW_fDOM1','VDOW_fDOM2','VDOW_fDOM3','VDOW_fDOM4','VDOW_fDOM5','VDOW_fDOM6','VDOW_fDOM7','VDOW_fDOM8','VDOW_fDOM9','VDOW_fDOM10',
-                    'VDOW_fDOM11','VDOW_fDOM12','VDOW_fDOM13','VDOW_fDOM14','VDOW_fDOM15','VDOW_fDOM16','VDOW_fDOM17','VDOW_fDOM18','VDOW_fDOM19','VDOW_fDOM20',
-                    'VDOW_fDOM21','VDOW_fDOM22','VDOW_fDOM23','VDOW_fDOM24','VDOW_fDOM25','VDOW_fDOM26','VDOW_fDOM27','VDOW_fDOM28')
-
-
-
-##VDOS##
-
-VDOS_fDOM1= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-09-21 15:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-09-21 23:45:00",tz= "US/Mountain"),]
-
-VDOS_fDOM2= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-10-10 06:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-10-10 06:45:00",tz= "US/Mountain"),]
-
-VDOS_fDOM3= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-10-16 08:30:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-10-16 14:30:00",tz= "US/Mountain"),]
-
-VDOS_fDOM4= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-10-25 01:00:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-10-26 14:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM5= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-10-27 18:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-10-29 14:45:00",tz= "US/Mountain"),]
-
-VDOS_fDOM6= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-03 02:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-03 03:00:00",tz= "US/Mountain"),]
-
-VDOS_fDOM7= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-03 16:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-04 15:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM8= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-11 00:45:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-15 12:00:00",tz= "US/Mountain"),]
-
-VDOS_fDOM9= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-15 12:15:00",tz= "US/Mountain")
-                               &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-17 04:00:00",tz= "US/Mountain"),]
-
-VDOS_fDOM10= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-24 22:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-25 11:00:00",tz= "US/Mountain"),]
-
-VDOS_fDOM11= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-27 09:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-27 11:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM12= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-29 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-29 11:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM13= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2023-11-30 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2023-11-30 11:30:00",tz= "US/Mountain"),]
-
-VDOS_fDOM14= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-02-21 13:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-02-21 15:00:00",tz= "US/Mountain"),]
-
-VDOS_fDOM15= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-05-23 10:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-05-23 10:45:00",tz= "US/Mountain"),]
-
-VDOS_fDOM16= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-06-11 09:45:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-06-12 04:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM17= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-07-09 20:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-07-14 09:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM18= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-07-16 10:00:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-07-17 13:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM19= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-07-17 13:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-07-18 16:30:00",tz= "US/Mountain"),]
-
-VDOS_fDOM20= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-08-07 00:15:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-08-12 08:15:00",tz= "US/Mountain"),]
-
-VDOS_fDOM21= EXOz.dtw[["VDOS"]][EXOz.dtw[["VDOS"]]$datetimeMT >= as.POSIXct("2024-08-19 09:30:00",tz= "US/Mountain")
-                                &EXOz.dtw[["VDOS"]]$datetimeMT <= as.POSIXct("2024-08-19 10:30:00",tz= "US/Mountain"),]
-
-#compile list
-VDOS_fDOM<-list(VDOS_fDOM1,VDOS_fDOM2,VDOS_fDOM3,VDOS_fDOM4,VDOS_fDOM5,VDOS_fDOM6,VDOS_fDOM7,VDOS_fDOM8,VDOS_fDOM9,VDOS_fDOM10,
-                VDOS_fDOM11,VDOS_fDOM12,VDOS_fDOM13,VDOS_fDOM14,VDOS_fDOM15,VDOS_fDOM16,VDOS_fDOM17,VDOS_fDOM18,VDOS_fDOM19,VDOS_fDOM20,
-                VDOS_fDOM21)
-names(VDOS_fDOM)<-c('VDOS_fDOM1','VDOS_fDOM2','VDOS_fDOM3','VDOS_fDOM4','VDOS_fDOM5','VDOS_fDOM6','VDOS_fDOM7','VDOS_fDOM8','VDOS_fDOM9','VDOS_fDOM10',
-                    'VDOS_fDOM11','VDOS_fDOM12','VDOS_fDOM13','VDOS_fDOM14','VDOS_fDOM15','VDOS_fDOM16','VDOS_fDOM17','VDOS_fDOM18','VDOS_fDOM19','VDOS_fDOM20',
-                    'VDOS_fDOM21')
-
-
-
-
-
-
 #### Save lists of event dataframes ####
 #DO
 Eventdate <-list(SLOC_dates,SLOW_dates,VDOW_dates,VDOS_dates)  
@@ -1104,12 +719,10 @@ names(Eventdate)<-c('SLOC_dates','SLOW_dates','VDOW_dates','VDOS_dates')
 
 DO_events<-list(SLOC_DO,SLOW_DO,VDOW_DO,VDOS_DO)
 names(DO_events)<-c('SLOC_DO','SLOW_DO','VDOW_DO','VDOS_DO')
-#fDOM
-fDOM_events<-list(SLOC_fDOM,SLOW_fDOM,VDOW_fDOM,VDOS_fDOM)
-names(fDOM_events)<-c('SLOC_fDOM','SLOW_fDOM','VDOW_fDOM','VDOS_fDOM')
+
 #compile all events
-BEGI_events<-list(DO_events,fDOM_events,Eventdate)
-names(BEGI_events)<-c('DO_events','fDOM_events','Eventdate')
+BEGI_events<-list(DO_events,Eventdate)
+names(BEGI_events)<-c('DO_events','Eventdate')
 
 #save list
 saveRDS(BEGI_events,"EXO_compiled/BEGI_events.rds")
