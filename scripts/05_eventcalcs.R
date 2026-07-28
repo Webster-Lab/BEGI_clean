@@ -39,13 +39,6 @@ interval_hr    = interval_min / 60        # width of one interval, in hours
 noise_threshold_mgL = 0.01   # EXO manual resolution
 z_m = 1   # meters; sensor depth below water table
 
-#### Pull an event's category (metabolism / lateral transfer / other) 
-get_event_category = function(dz) {
-  vals = dz$event[!is.na(dz$event)]
-  if (length(vals) == 0) return("unclassified")
-  names(sort(table(vals), decreasing = TRUE))[1]
-}
-
 # define function
 calc_ER_event = function(event_df, maxgap = 4*3) {
   
@@ -112,12 +105,11 @@ ER_results = do.call(rbind, lapply(names(DO_events), function(site_key) {
     result = calc_ER_event(site_events[[i]])
     result$site     = site_name
     result$event_id = i
-    result$category = get_event_category(site_events[[i]])
     result
   }))
 }))
 
-ER_results = ER_results[, c("site", "event_id", "category",
+ER_results = ER_results[, c("site", "event_id",
                              "accrual_rate_hourly_mgL_hr", "accrual_duration_hr", "accrual_total_mgL",
                              "ER_rate_hourly_mgL_hr", "ER_duration_hr", "ER_total_mgL",
                              "gross_total_mgL",
