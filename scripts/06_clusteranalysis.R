@@ -12,6 +12,11 @@
 # Ethanol example: https://tmastny.github.io/tsrecipes/articles/time-series-clustering.html
 # browseVignettes("dtwclust")
 
+# Output:
+# 1. plot of depth to groundwater clusters preceding DO event
+# 2. plot of fDOM clusters following DO event
+# 3. dataframe of DO events EXCLUDING chemical oxidation (where fDOM rebounds; ER_calc_cluster2.rds)
+
 #### libraries ####
 
 library(tidyverse)
