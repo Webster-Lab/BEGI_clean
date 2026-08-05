@@ -105,7 +105,7 @@ head       = 0.015
 # =============================================================================
 # Monte Carlo sampling
 # =============================================================================
-np.random.seed(42)
+np.random.seed(3)
 nsamples = 1000
 
 k_samples          = np.random.normal(np.log10(ksat),       0.75, nsamples)
@@ -177,7 +177,7 @@ k_samples          = np.random.normal(np.log10(ksat),       0.75, nsamples)
 head_grad_samples  = np.clip(np.random.normal(head,     0.004, nsamples), 0.005, 0.025)
 porosity_samples   = np.clip(np.random.normal(porosity, 0.05,  nsamples), 0.05,  0.35)
 
-x = np.linspace(0, 300, 301)
+x = np.linspace(0, 550, 551)
 # style_ax(ax1)
 results_df = pd.DataFrame({'x': x})
 
@@ -195,15 +195,17 @@ for samp in range(nsamples):
     ax.plot(x, c, color=LINE_COLOR, lw=LINE_WIDTH, alpha=LINE_ALPHA,
              rasterized=True)
 
-ax.set_xlim(0, 300)
+ax.set_xlim(0, 525)
 ax.set_ylim(0, c_source * 1.05)
 ax.xaxis.set_major_locator(ticker.MultipleLocator(50))
 ax.yaxis.set_major_locator(ticker.MultipleLocator(2))
 ax.set_xlabel('Distance from river (m)')
 ax.set_ylabel('DO Concentration (mg/L)')
-add_strip(ax, f'Concentration Profile   (t = {time:.0f} days,  n = {nsamples})')
+# ax.set_title('Ogata-Banks Monte Carlo Simulation of DO Concentration Profiles')
+# add_strip(ax, f'Concentration Profile   (t = {time:.0f} days,  n = {nsamples})')
 
 results_df.set_index('x', inplace=True)
+
 # =============================================================================
 # Save
 # =============================================================================
