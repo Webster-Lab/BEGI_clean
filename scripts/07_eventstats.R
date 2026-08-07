@@ -1,11 +1,10 @@
 #### read me ####
 # The purpose of this script is to calculate for each event delineated in 04_eventdelineation.R, 
-# the mean and variance of depth to groundwater and temperature, to be used in later script of LMM
+# the mean and variance of depth to groundwater and temperature, to be used in later script of linear mixed models
 
 # Output:
 # 1. dataframe of groundwater mean and variance for each well
 # 2. dataframe of groundwater mean and variance for each event
-
 
 #### Libraries and functions####
 library(googledrive)
@@ -26,21 +25,27 @@ EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
 #### Groundwater depth whole well mean/var ####
 wells<-c("SLOC","SLOW","VDOS","VDOW")
 
+# calc mean
 gwmean_well<-c(mean(EXOz.dtw[["SLOC"]]$DTW_m, na.rm = TRUE),
                mean(EXOz.dtw[["SLOW"]]$DTW_m, na.rm = TRUE),
                mean(EXOz.dtw[["VDOS"]]$DTW_m, na.rm = TRUE),
                mean(EXOz.dtw[["VDOW"]]$DTW_m, na.rm = TRUE))
 
-cv <- function (x){
-  sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE) * 100
-}
+# calc variance as sample variance
+gwtruevar_well <- c(var(EXOz.dtw[["SLOC"]]$DTW_m, na.rm = TRUE),
+                    var(EXOz.dtw[["SLOW"]]$DTW_m, na.rm = TRUE),
+                    var(EXOz.dtw[["VDOS"]]$DTW_m, na.rm = TRUE),
+                    var(EXOz.dtw[["VDOW"]]$DTW_m, na.rm = TRUE))
+names(gwtruevar_well) <- wells
+
+# calc variance as cv (normalized to mean)
 gwvar_well<-c(cv(EXOz.dtw[["SLOC"]]$DTW_m),
               cv(EXOz.dtw[["SLOW"]]$DTW_m),
               cv(EXOz.dtw[["VDOS"]]$DTW_m),
               cv(EXOz.dtw[["VDOW"]]$DTW_m))
 
-gwmv_well<-data.frame(wells,gwmean_well,gwvar_well)
-gwmv_well 
+gwmv_well<-data.frame(wells,gwmean_well,gwvar_well,gwtruevar_well)
+gwmv_well
 
 #### export for use in other scripts ####
 write.csv(gwmv_well, "DTW_compiled/gwmv_well.csv")
