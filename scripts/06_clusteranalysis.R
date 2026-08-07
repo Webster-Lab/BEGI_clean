@@ -15,9 +15,9 @@
 # Output:
 # 1. plot of depth to groundwater clusters preceding DO event
 # 2. plot of fDOM clusters following DO event
-# 3. dataframe of DO events EXCLUDING chemical oxidation (where fDOM rebounds; ER_calc_cluster2.rds)
+# 3. dataframe of DO events with chemical oxidation (where fDOM rebounds) flagged: ER_calc_all_events.csv
 
-#### libraries ####
+#### Libraries ####
 
 library(tidyverse)
 library(dtwclust)
@@ -1013,18 +1013,36 @@ fdom_df = readRDS("EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
 
 #### Create data frame of just events where fDOM DOES NOT rebound ####
-cluster2 <- cluster_data_k2[cluster_data_k2$cluster == 2, ]
-cluster2_events <- cluster2$event_id
+
+# look up ids that matck fDOM rebound events
+id_lookup <- cluster_data_k2 %>%
+  transmute(
+    site = as.character(well_id),
+    event_id_std = as.character(event_id),           # e.g. "SLOC_DO1"
+    event_id_bare = str_extract(event_id, "\\d+$"),   # e.g. "1"
+    Eventdate = event_time,
+    fDOM_rebound = (cluster == 1)   # cluster 1 = rebounding fDOM (interpreted as chemical oxidation)
+  )
+
+# load er calcs
+ER_calc_all <- read_csv("EXO_compiled/ER_calc_all_events.csv")
+
+# standardize event ids and join
+ER_calc_all <- ER_calc_all %>%
+    mutate(event_id_bare = as.character(event_id)) %>%
+    select(-event_id, -any_of(c("fDOM_rebound", "Eventdate"))) %>%
+    left_join(
+      id_lookup %>% select(site, event_id_bare, event_id = event_id_std, Eventdate, fDOM_rebound),
+      by = c("site", "event_id_bare")
+    ) %>%
+    select(-event_id_bare) %>%
+    relocate(event_id, .after = site) %>%
+    relocate(Eventdate, .after = event_id)
 
 
-# subset roc_all for 09_DOtoER
-ER_calc_all = read_csv("EXO_compiled/ER_calc_all_events.csv")
+# check: every event in ER_calc_all_events.csv should get a matched event_id, Eventdate, and fDOM_rebound classification. 
+unmatched <- ER_calc_all[is.na(ER_calc_all$fDOM_rebound) | is.na(ER_calc_all$Eventdate), c("site")]
+unmatched
 
-ER_calc_cluster2 <- lapply(
-  ER_calc_all,
-  function(well_list) {
-    well_list[names(well_list) %in% cluster2_events]
-  }
-)
-
-saveRDS(ER_calc_cluster2, "EXO_compiled/ER_calc_cluster2.rds")
+# save results
+write_csv(ER_calc_all, "EXO_compiled/ER_calc_all_events.csv")
