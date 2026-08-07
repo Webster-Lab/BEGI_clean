@@ -1,4 +1,4 @@
-#### read me ####
+#### READ ME ####
 # The purpose of this script is to use the r package dtwclust to 
 # 1. cluster water depth curves by shape to characterize the nature of the 
 # variation that is correlated with DO event size
@@ -1009,65 +1009,8 @@ cluster_data_k2$event_id <-do_lookup$event_id
 # dataframe of just rebounding fdom (cluster 1)
 fdom_rebound <- cluster_data_k2[cluster_data_k2$cluster == 1, ]
 
-#### Plot rebounding fDOM with DO ####
 fdom_df = readRDS("EXO_compiled/BEGI_EXOz.ts.tc.rds")
 
-# # Correct negative DO values
-# fdom_df[["VDOW"]]$ODO.mg.L.mn <- fdom_df[["VDOW"]]$ODO.mg.L.mn + 0.36
-# fdom_df[["VDOS"]]$ODO.mg.L.mn <- fdom_df[["VDOS"]]$ODO.mg.L.mn + 0.42
-# fdom_df[["SLOW"]]$ODO.mg.L.mn <- fdom_df[["SLOW"]]$ODO.mg.L.mn + 0.32
-# fdom_df[["SLOC"]]$ODO.mg.L.mn <- fdom_df[["SLOC"]]$ODO.mg.L.mn + 2.2
-
-# for each event in fdom_rebound$event_id, plot fdom and DO 48 hours following event
-for (i in c(1:nrow(fdom_rebound))){
-  id = fdom_rebound$event_id[i]
-  site = substr(id,1,4)
-  start_time = fdom_rebound$event_time[i]
-  end_time = start_time + (60*60*48)
-  tempdat = fdom_df[[site]][fdom_df[[site]]$datetimeMT < (as.POSIXct(end_time))&
-                              fdom_df[[site]]$datetimeMT > as.POSIXct(start_time),]
-  
-  #save plot 
-  file_name = paste("plots/fdom_rebound/", id, ".pdf", sep="")
-  pdf(file_name)
-  
-  par(mfrow=c(3,1))
-  
-  # Create a sequence of hourly intervals
-  hour_intervals <- seq(from = start_time, to = end_time, by = "1 hour")
-  
-  plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-       pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="",ylim=c(-0.5,2.5))
-  #rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=100, col="lightgrey", lwd = 0)
-  lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$ODO.mg.L.mn),
-        pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(-0.2,10)
-  #abline(v=as.POSIXct(service.SLOC$datetimeMT), col="red")
-  axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-  axis.POSIXct(side = 1, at = hour_intervals, format = "%H:%M", las = 2)
-  title(main="Dissolved Oxygen (mg/L)")
-  
-  plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-       pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n",ylim=c(0,100))
-  #rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-  lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$fDOM.QSU.mn),
-        pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5)
-  #abline(v=as.POSIXct(service.SLOC$datetimeMT), col="red")
-  axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-  axis.POSIXct(side = 1, at = hour_intervals, format = "%H:%M", las = 2)
-  title(main="fDOM (QSU)")
-  
-  plot(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-       pch=20,col="black", xlab="", xaxt = "n", type="n", ylab="n",ylim=c(0,10))
-  #rect(xleft=pm.pts,xright=am.pts,ybottom=-4, ytop=1000, col="lightgrey", lwd = 0)
-  lines(ymd_hms(tempdat$datetimeMT, tz="US/Mountain"),(tempdat$Turbidity.FNU.mn),
-        pch=20,col="black", xlab="", xaxt = "n", type="o")#,ylim=c(22.5,24.5)
-  #abline(v=as.POSIXct(service.SLOC$datetimeMT), col="red")
-  axis.POSIXct(side=1,at=cut(tempdat$datetimeMT, breaks="24 hours"),format="%m-%d", las=2)
-  axis.POSIXct(side = 1, at = hour_intervals, format = "%H:%M", las = 2)
-  title(main="Turbidity (FNU)")
-  
-  dev.off()
-}
 
 #### Create data frame of just events where fDOM DOES NOT rebound ####
 cluster2 <- cluster_data_k2[cluster_data_k2$cluster == 2, ]
