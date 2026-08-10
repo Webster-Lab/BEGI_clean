@@ -148,3 +148,53 @@ temp_event_mv <- bind_rows(temp_event_stats_list)
 write_csv(temp_event_mv, "DTW_compiled/temp_mv_2days.csv")
 
 
+#### fDOM whole Well Mean/Var ####
+wells <- c("SLOC", "SLOW", "VDOS", "VDOW")
+
+fDOMmean_well <- sapply(wells, function(w) mean(EXOz.dtw[[w]][["fDOM.QSU.mn.Tc"]], na.rm = TRUE))
+fDOMvar_well <- sapply(wells, function(w) cv(EXOz.dtw[[w]][["fDOM.QSU.mn.Tc"]]))
+fDOMtruevar_well <- sapply(wells, function(w) var(EXOz.dtw[[w]][["fDOM.QSU.mn.Tc"]], na.rm = TRUE))
+names(fDOMtruevar_well) <- wells
+
+fDOMmv_well <- data.frame(wells, fDOMmean_well, fDOMvar_well, fDOMtruevar_well)
+fDOMmv_well
+
+#### export for use in other scripts
+write.csv(fDOMmv_well, "DTW_compiled/fDOMmv_well.csv")
+
+#### DO event water fDOM mean, variance, SD, and CV (2 days before each event) ####
+
+fDOM_event_stats_list <- list()
+
+for (site in wells) {
+  site_key <- paste0(site, "_DO")
+  site_events <- BEGI_events[["DO_events"]][[site_key]]
+  
+  for (event_name in names(site_events)) {
+    event_time <- site_events[[event_name]]$datetimeMT[1]
+    start_time <- event_time - (60 * 60 * 48)
+    
+    window_vals <- EXOz.dtw[[site]] %>%
+      filter(datetimeMT >= start_time & datetimeMT < event_time) %>%
+      pull(fDOM.QSU.mn.Tc)
+    
+    event_var <- var(window_vals, na.rm = TRUE)
+    
+    fDOM_event_stats_list[[length(fDOM_event_stats_list) + 1]] <- data.frame(
+      site = site,
+      event_id = event_name,
+      Eventdate = event_time,
+      fDOM_mean_2d = mean(window_vals, na.rm = TRUE),
+      fDOM_var_2d = event_var,
+      fDOM_sd_2d = sd(window_vals, na.rm = TRUE),
+      fDOM_cv_2d = cv(window_vals),
+      fDOM_relvar_2d = event_var / fDOMtruevar_well[[site]]
+    )
+  }
+}
+
+fDOM_event_mv <- bind_rows(fDOM_event_stats_list)
+
+write_csv(fDOM_event_mv, "DTW_compiled/fDOM_mv_2days.csv")
+
+
