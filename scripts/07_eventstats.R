@@ -1,10 +1,11 @@
-#### read me ####
-# The purpose of this script is to calculate for each event delineated in 04_eventdelineation.R, 
-# the mean and variance of depth to groundwater and temperature, to be used in later script of linear mixed models
+#### READ ME ####
+# The purpose of this script is t:
+#   a) summarize carbon respiration by well with fDOM rebound events removed, and 
+#   b) calculate for each event delineated in 04_eventdelineation.R, the mean and variance of depth to groundwater, mean temperature, and mean fDOM in the two days prior to each event, to be used in later script of linear mixed models.
 
 # Output:
-# 1. dataframe of groundwater mean and variance for each well
-# 2. dataframe of groundwater mean and variance for each event
+# 1. dataframe of groundwater mean and variance, mean temperature, and mean fDOM for each well
+# 2. dataframe of groundwater mean and variance, mean temperature, and mean fDOM for each event
 
 #### Libraries and functions####
 library(googledrive)
@@ -21,6 +22,39 @@ cv <- function (x){
 
 #### Import compiled data ####
 EXOz.dtw = readRDS("DTW_compiled/BEGI_EXOz_dtw.rds")
+
+event_dat = read.csv("EXO_compiled/ER_calc_all_events.csv")
+
+#### Summarize carbon respiration by well, across all events for annual rates & total ####
+
+carbon_summary = event_dat %>%
+  group_by(site) %>%
+  filter(fDOM_rebound==FALSE) %>%
+  summarise(
+    n_events = n(),
+    
+    # total carbon mass respired, summed across all events (g C/m2)
+    total_C_respired_gC_m2_mid  = sum(ER_total_areal_gO2_m2_as_C_mid,  na.rm = TRUE),
+    total_C_respired_gC_m2_low  = sum(ER_total_areal_gO2_m2_as_C_low,  na.rm = TRUE),
+    total_C_respired_gC_m2_high = sum(ER_total_areal_gO2_m2_as_C_high, na.rm = TRUE),
+    
+    # average rate of carbon consumption across all events (g C/m2/hr)
+    mean_C_rate_gC_m2_hr_mid  = mean(ER_rate_hourly_areal_gO2_m2_hr_as_C_mid,  na.rm = TRUE),
+    mean_C_rate_gC_m2_hr_low  = mean(ER_rate_hourly_areal_gO2_m2_hr_as_C_low,  na.rm = TRUE),
+    mean_C_rate_gC_m2_hr_high = mean(ER_rate_hourly_areal_gO2_m2_hr_as_C_high, na.rm = TRUE),
+    
+    .groups = "drop"
+  )
+
+write.csv(carbon_summary, "results/carbon_summary_by_well.csv", row.names = FALSE)
+
+# mean annual C respired: 3.93 g C/m2/y
+mean(carbon_summary$total_C_respired_gC_m2_mid)
+#upper: 13.1 g C/m2/y
+mean(carbon_summary$total_C_respired_gC_m2_high)
+#lower: 1.64 g C/m2/y
+mean(carbon_summary$total_C_respired_gC_m2_low)
+
 
 #### Groundwater depth whole well mean/var ####
 wells<-c("SLOC","SLOW","VDOS","VDOW")
