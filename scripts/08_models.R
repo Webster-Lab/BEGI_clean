@@ -73,7 +73,7 @@ fDOM_events_raw <- read_csv("DTW_compiled/fDOM_mv_2days.csv") %>%
 
 events <- left_join(events, fDOM_events_raw, by = c("site", "event_id"))
 events <- events %>% select(-Eventdate_temp)
-
+ 
 #### Define derived variables ####
 
 # siteID = site pair (SLO wells vs VDO wells), wellID = individual well.
@@ -225,15 +225,8 @@ hypotheses <- tibble::tribble(
 
 predictors <- c("DTW_mean_2d", "DTW_sd_2d", "temp_mean_2d", "fDOM_mean_2d")
 
-extra_pairs <- tibble::tribble(
-  ~response,       ~predictor,                              ~data_subset,
-  "ER_total_mag",  "accrual_total_areal_gO2_m2",             "no_rebound",
-  "ER_rate_mag",   "accrual_rate_hourly_areal_gO2_m2_hr",    "no_rebound"
-)
-
 model_specs <- bind_rows(
-  tidyr::crossing(hypotheses, predictor = predictors),
-  extra_pairs
+  tidyr::crossing(hypotheses, predictor = predictors)
 )
 
 random_structures <- list(nested = ~1 | siteID/wellID, well_only = ~1 | wellID)
@@ -381,15 +374,12 @@ humanize <- function(x, lookup) dplyr::if_else(x %in% names(lookup), unname(look
 
 summary_all <- read_csv("results/EReventmodels_summary.csv")
 
-extra_pair_predictors <- c("accrual_total_areal_gO2_m2", "accrual_rate_hourly_areal_gO2_m2_hr")
-
 summary_nested <- summary_all %>%
   filter(random_structure == "nested") %>%
   mutate(
     term = str_extract(predictor, "(within|between)$"),
     predictor_base = str_remove(predictor, "_(within|between)$")
-  ) %>%
-  filter(!predictor_base %in% extra_pair_predictors)
+  ) 
 
 make_summary_table <- function(data, title, subtitle, out_file) {
   prepped <- data %>%
@@ -474,15 +464,12 @@ for (p in wb_predictors) {
   events[[paste0(p, "_within")]] <- events[[p]] - well_mean
 }
 
-### The six highlighted models:
+### The highlighted models:
 highlighted_models <- tibble::tribble(
   ~group,                   ~response,                      ~predictor,     ~data_subset,
   "DTW_sd_2d_within",       "accrual_total_areal_gO2_m2",   "DTW_sd_2d",    "all",
   "DTW_sd_2d_within",       "ER_total_mag",                  "DTW_sd_2d",    "no_rebound",
-  "DTW_sd_2d_within",       "gross_total_areal_gO2_m2",      "DTW_sd_2d",    "all",
-  "fDOM_mean_2d_between",   "accrual_total_areal_gO2_m2",   "fDOM_mean_2d", "all",
-  "fDOM_mean_2d_between",   "ER_total_mag",                  "fDOM_mean_2d", "no_rebound",
-  "fDOM_mean_2d_between",   "gross_total_areal_gO2_m2",      "fDOM_mean_2d", "all"
+  "DTW_sd_2d_within",       "gross_total_areal_gO2_m2",      "DTW_sd_2d",    "all"
 )
 
 nested_random <- ~1 | siteID/wellID
@@ -564,7 +551,7 @@ fit_highlighted <- function(data, response, predictor, label) {
   list(coef_tab = coef_tab, model = m.wb, data = d)
 }
 
-### Fit all six
+### Fit all 
 fit_list <- list()
 for (i in seq_len(nrow(highlighted_models))) {
   grp <- highlighted_models$group[i]
@@ -736,21 +723,6 @@ p_dtw_within_fit <- wrap_plots(dtw_fit_plots, ncol = 1) +
   )
 ggsave("plots/highlighted_DTW_sd_2d_within_fit.png", p_dtw_within_fit, width = 10, height = 10.5, dpi = 150)
 
-fdom_group <- highlighted_models %>% filter(group == "fDOM_mean_2d_between")
-fdom_fit_plots <- purrr::pmap(fdom_group, function(group, response, predictor, data_subset) {
-  make_fit_plot_between(
-    fit_list[[paste(group, response, sep = " | ")]],
-    response = response, title = humanize(response, response_unit_labels),
-    x_label = "Well mean fDOM, 2 days pre-event (QSU)",
-    y_label = response_label(response)
-  )
-})
-p_fdom_between_fit <- wrap_plots(fdom_fit_plots, ncol = 1) 
-  # plot_annotation(
-  #   title = "Accrual, ER, and total event size vs. between-well mean fDOM (2d pre-event)"
-  # )
-ggsave("plots/highlighted_fDOM_mean_2d_between_fit.png", p_fdom_between_fit, width = 5, height = 10.5, dpi = 150)
-
 
 #### Model diagnostics figures
 # residuals vs. fitted, QQ plot, residual ACF
@@ -791,13 +763,4 @@ p_dtw_diag <- wrap_plots(dtw_diag_rows, ncol = 1) +
     title = "Model diagnostics: response ~ DTW_sd_2d_within (nested random effects)"
   )
 ggsave("plots/highlighted_DTW_sd_2d_within_diagnostics.png", p_dtw_diag, width = 10, height = 9, dpi = 150)
-
-fdom_diag_rows <- purrr::pmap(fdom_group, function(group, response, predictor, data_subset) {
-  make_diagnostic_row(fit_list[[paste(group, response, sep = " | ")]], label = response)
-})
-p_fdom_diag <- wrap_plots(fdom_diag_rows, ncol = 1) +
-  plot_annotation(
-    title = "Model diagnostics: response ~ fDOM_mean_2d_between (nested random effects)"
-  )
-ggsave("plots/highlighted_fDOM_mean_2d_between_diagnostics.png", p_fdom_diag, width = 10, height = 9, dpi = 150)
 
