@@ -15,6 +15,7 @@ library(zoo)
 library(stringr)
 library(suncalc)
 library(DescTools)
+library(gt)
 
 cv <- function (x){
   sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE) * 100
@@ -54,6 +55,52 @@ mean(carbon_summary$total_C_respired_gC_m2_mid)
 mean(carbon_summary$total_C_respired_gC_m2_high)
 #lower: 1.64 g C/m2/y
 mean(carbon_summary$total_C_respired_gC_m2_low)
+
+#### Publication-ready table: carbon respired by well
+carbon_gt_data <- carbon_summary %>%
+  rename(well = site) %>%
+  mutate(Site = substr(well, 1, 3)) %>%
+  relocate(Site, .before = well) %>%
+  arrange(Site, well)
+
+tab <- gt(carbon_gt_data, groupname_col = "Site", rowname_col = "well")
+
+tab <- fmt_number(
+  tab,
+  columns = c(total_C_respired_gC_m2_mid, total_C_respired_gC_m2_low, total_C_respired_gC_m2_high,
+              mean_C_rate_gC_m2_hr_mid, mean_C_rate_gC_m2_hr_low, mean_C_rate_gC_m2_hr_high),
+  n_sigfig = 2
+)
+
+# Collapses the mid/low/high into "mid (low-high)" strings, using RQ = 1.2 as the point estimate and RQ = 0.5/4.0 (Berggren et al. 2012)
+tab <- cols_merge(
+  tab,
+  columns = c(total_C_respired_gC_m2_mid, total_C_respired_gC_m2_low, total_C_respired_gC_m2_high),
+  pattern = "{1} ({2}\u2013{3})"
+)
+tab <- cols_merge(
+  tab,
+  columns = c(mean_C_rate_gC_m2_hr_mid, mean_C_rate_gC_m2_hr_low, mean_C_rate_gC_m2_hr_high),
+  pattern = "{1} ({2}\u2013{3})"
+)
+
+tab <- cols_label(
+  tab,
+  n_events = "Events (n)",
+  total_C_respired_gC_m2_mid = "Total C respired (g C m\u207B\u00B2)",
+  mean_C_rate_gC_m2_hr_mid = "Mean C respiration rate (g C m\u207B\u00B2 hr\u207B\u00B9)"
+)
+
+tab <- tab_header(
+  tab,
+  title = "Carbon Respired via Groundwater Ecosystem Respiration, by Well",
+  subtitle = "Total and mean hourly carbon respiration, all DO events"
+)
+
+tab <- tab_options(tab, table.font.size = px(12))
+
+print(tab)
+gtsave(tab, "tables/carbon_summary_by_well.html")
 
 
 #### Groundwater depth whole well mean/var ####
