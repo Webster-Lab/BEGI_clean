@@ -37,6 +37,7 @@ library(forecast)
 library(patchwork)
 library(psych)
 library(gt)
+library(emmeans)
 
 #### Check/make file structure ####
 
@@ -102,12 +103,12 @@ for (p in wb_predictors) {
   events[[paste0(p, "_within")]] <- events[[p]] - well_mean
 }
 
-#### Define function for model fitting and diagnosis ####
+#### Define functions for model fitting and diagnosis ####
 
+## for correlations
 # random_form: ~1|wellID or ~1|siteID/wellID
 # log_transform: if TRUE, models log(response)
 # label: short string used in printed headers and saved plot filenames.
-
 fit_and_diagnose <- function(data, response, predictor, random_form,
                              log_transform = FALSE, label = NULL) {
   
@@ -212,6 +213,92 @@ fit_and_diagnose <- function(data, response, predictor, random_form,
   )
 }
 
+## for mean differences between wells
+test_well_differences <- function(data, response, log_transform = TRUE, label = NULL) {
+  
+  d <- as.data.frame(data)
+  d <- d[stats::complete.cases(d[, c(response, "siteID", "wellID")]), ]
+  d$wellID <- droplevels(d$wellID)
+  d$siteID <- droplevels(d$siteID)
+  
+  resp_expr <- response
+  if (log_transform) {
+    n_dropped <- sum(d[[response]] <= 0, na.rm = TRUE)
+    if (n_dropped > 0) {
+      d <- d[d[[response]] > 0, ]
+    }
+    resp_expr <- paste0("log(", response, ")")
+  }
+  
+  n <- nrow(d)
+  n_wells <- length(unique(d$wellID))
+  if (n < 10 || n_wells < 2) {
+    return(invisible(NULL))
+  }
+  
+  fit_one <- function(fixed_rhs, method) {
+      nlme::lme(as.formula(paste(resp_expr, "~", fixed_rhs)),
+                data = d, random = ~1 | siteID, method = method,
+                control = nlme::lmeControl(opt = "optim"))
+  }
+  
+  # ML fits for the overall mean difference vs null
+  m.null.ml <- fit_one("1", "ML")
+  m.well.ml <- fit_one("wellID", "ML")
+  if (is.null(m.null.ml) || is.null(m.well.ml)) return(invisible(NULL))
+  
+  lrt <- anova(m.null.ml, m.well.ml)
+  overall_p <- NA_real_
+  if (!is.null(lrt)) {
+    print(lrt)
+    overall_p <- lrt$"p-value"[2]
+  }
+  
+  aicc_tab <- MuMIn::AICc(m.null.ml, m.well.ml)
+  print(aicc_tab)
+  delta_aicc <- aicc_tab$AICc[1] - aicc_tab$AICc[2]
+  
+  # REML fit for reporting effect estimates/CIs/diagnostics
+  m.well <- fit_one("wellID", "REML")
+  if (is.null(m.well)) return(invisible(NULL))
+  
+  # Marginal (type-III-style) F-test for wellID 
+  anova_tab <- anova.lme(m.well, type = "marginal", adjustSigma = FALSE)
+  print(anova_tab)
+  
+  plot(m.well, main = paste(label, "- residuals vs fitted"))
+  qqnorm(residuals(m.well), main = paste(label, "- QQ plot")); qqline(residuals(m.well))
+  forecast::Acf(residuals(m.well), main = paste(label, "- residual ACF"))
+  
+  summary_well <- summary(m.well)
+  print(summary_well)
+  r2 <- MuMIn::r.squaredGLMM(m.well)
+  
+  # LOO
+  loo_p <- rep(NA_real_, n)
+  for (i in seq_len(n)) {
+    d_loo <- d[-i, ]
+    if (length(unique(d_loo$wellID)) < n_wells) next  # would drop a well entirely
+    m0 <- nlme::lme(as.formula(paste(resp_expr, "~ 1")), data = d_loo,
+                random = ~1 | siteID, method = "ML",
+                control = nlme::lmeControl(opt = "optim", msMaxIter = 200))
+    m1 <- nlme::lme(as.formula(paste(resp_expr, "~ wellID")), data = d_loo,
+                random = ~1 | siteID, method = "ML",
+                control = nlme::lmeControl(opt = "optim", msMaxIter = 200))
+  }
+  n_loo_flip <- sum((loo_p >= 0.05) != (overall_p >= 0.05), na.rm = TRUE)
+  
+  list(
+    label = label, n = n, n_wells = n_wells,
+    overall_p = overall_p, delta_aicc = delta_aicc, r2 = r2,
+    n_loo_flip = n_loo_flip,
+    m.null.ml = m.null.ml, m.well.ml = m.well.ml, m.well = m.well,
+    summary_well = summary_well, anova_tab = anova_tab,
+    lrt = lrt, aicc_tab = aicc_tab
+  )
+}
+
+
 #### Fit models ####
 
 hypotheses <- tibble::tribble(
@@ -231,8 +318,8 @@ model_specs <- bind_rows(
 
 random_structures <- list(nested = ~1 | siteID/wellID, well_only = ~1 | wellID)
 
+# test for continuous correlations
 all_results <- list()
-
 for (i in seq_len(nrow(model_specs))) {
   resp <- model_specs$response[i]
   pred <- model_specs$predictor[i]
@@ -253,7 +340,22 @@ for (i in seq_len(nrow(model_specs))) {
   }
 }
 
-#### Write summary table across all fitted models ####
+# test for mean well differences
+well_diff_results <- list()
+for (i in seq_len(nrow(hypotheses))) {
+  resp <- hypotheses$response[i]
+  subset_data <- if (hypotheses$data_subset[i] == "no_rebound") {
+    events %>% filter(!fDOM_rebound)
+  } else {
+    events
+  }
+  well_diff_results[[resp]] <- test_well_differences(
+    data = subset_data, response = resp, log_transform = TRUE,
+    label = paste0(resp, " (well mean-difference test, log)")
+  )
+}
+
+#### Write summary tables across all fitted models ####
 
 summary_rows <- purrr::imap_dfr(all_results, function(res, key) {
   if (is.null(res)) return(NULL)
@@ -280,9 +382,142 @@ summary_rows <- purrr::imap_dfr(all_results, function(res, key) {
 
 write_csv(summary_rows, "results/EReventmodels_summary.csv")
 
+# model-level summary of mean well differences
+well_diff_summary <- purrr::imap_dfr(well_diff_results, function(res, resp) {
+  if (is.null(res)) return(NULL)
+  tibble(
+    response = resp, n = res$n, n_wells = res$n_wells,
+    overall_p = res$overall_p, delta_AICc = res$delta_aicc,
+    R2_marginal = res$r2[1, "R2m"],
+    R2_conditional = res$r2[1, "R2c"],
+    n_loo_flip = res$n_loo_flip
+  )
+})
+## results:
+# weak evidence (p = 0.08) for differences between wells in gross_total_areal_gO2_m2
+# weak evidence (p = 0.08) for differences between wells in accrual_total_areal_gO2_m2
+# strong evidence (p = 0.008) for differences between wells in accrual_rate_hourly_areal_gO2_m2
+
+# looking at differences between wells within each model
+wellID_coef_table <- function(fit, response, log_transform = TRUE) {
+  
+  if (is.null(fit)) return(NULL)
+  
+  tt <- as.data.frame(summary(fit)$tTable)
+  tt$term <- rownames(tt)
+  names(tt) <- c("estimate", "SE", "df", "t_value", "p_value", "term")
+  
+  # ID reference (baseline) well
+  all_wells <- names(well_colors)
+  nonref_terms <- setdiff(tt$term, "(Intercept)")
+  nonref_wells <- gsub("^wellID", "", nonref_terms)
+  reference_well <- setdiff(all_wells, nonref_wells)
+  
+  intercept_est <- tt$estimate[tt$term == "(Intercept)"]
+  sigma2 <- fit$sigma^2
+  
+  out <- tt
+  out$wellID <- ifelse(out$term == "(Intercept)", reference_well, gsub("^wellID", "", out$term))
+  out$is_reference <- out$term == "(Intercept)"
+  out$log_mean <- ifelse(out$is_reference, out$estimate, intercept_est + out$estimate)
+  
+  if (log_transform) {
+    out$mean_geometric <- exp(out$log_mean)
+  } else {
+    out$mean_geometric <- out$log_mean
+  }
+  
+  out <- out[, c("wellID", "is_reference", "term", "estimate", "SE", "df", "t_value", "p_value",
+                 "log_mean", "mean_geometric")]
+  tibble::as_tibble(out) %>% mutate(response = response, .before = 1)
+}
+
+wellID_coef_table <- function(fit, response, log_transform = TRUE) {
+  
+  if (is.null(fit)) return(NULL)
+  
+  tt <- as.data.frame(summary(fit)$tTable)
+  tt$term <- rownames(tt)
+  names(tt) <- c("estimate", "SE", "df", "t_value", "p_value", "term")
+  
+  # Raw per-term 95% CIs from nlme::intervals(), matched back onto tt by term name (not merge(), to guarantee row order/alignment is preserved).
+  ci <- tryCatch({
+    ci_raw <- nlme::intervals(fit, level = 0.95, which = "fixed")$fixed
+    data.frame(term = rownames(ci_raw), estimate_CI_lower = ci_raw[, "lower"],
+               estimate_CI_upper = ci_raw[, "upper"], stringsAsFactors = FALSE)
+  }, error = function(e) {
+    cat("nlme::intervals() failed for", response, ":", conditionMessage(e), "\n")
+    NULL
+  })
+  if (!is.null(ci)) {
+    idx <- match(tt$term, ci$term)
+    tt$estimate_CI_lower <- ci$estimate_CI_lower[idx]
+    tt$estimate_CI_upper <- ci$estimate_CI_upper[idx]
+  } else {
+    tt$estimate_CI_lower <- NA_real_
+    tt$estimate_CI_upper <- NA_real_
+  }
+  
+  # ID reference (baseline) well
+  all_wells <- names(well_colors)
+  nonref_terms <- setdiff(tt$term, "(Intercept)")
+  nonref_wells <- gsub("^wellID", "", nonref_terms)
+  reference_well <- setdiff(all_wells, nonref_wells)
+  
+  intercept_term <- "(Intercept)"
+  intercept_est <- tt$estimate[tt$term == intercept_term]
+  sigma2 <- fit$sigma^2
+  vc <- vcov(fit)
+  
+  out <- tt
+  out$wellID <- ifelse(out$term == intercept_term, reference_well, gsub("^wellID", "", out$term))
+  out$is_reference <- out$term == intercept_term
+  out$log_mean <- ifelse(out$is_reference, out$estimate, intercept_est + out$estimate)
+  
+  # For non-reference wells, log_mean = Intercept + coefficient, so adding the two terms' separate CI half-widths would be wrong. This instead pulls Var(Intercept), Var(coefficient), and Cov(Intercept, coefficient) from vcov(fit) and combines them properly: Var(Intercept + coefficient) = Var(Intercept) + Var(coefficient) + 2*Cov(Intercept, coefficient)
+  se_log_mean <- vapply(seq_len(nrow(out)), function(i) {
+    term_i <- out$term[i]
+    if (out$is_reference[i]) {
+      sqrt(vc[intercept_term, intercept_term])
+    } else {
+      sqrt(vc[intercept_term, intercept_term] + vc[term_i, term_i] +
+             2 * vc[intercept_term, term_i])
+    }
+  }, numeric(1))
+  tcrit <- qt(0.975, out$df)
+  out$log_mean_CI_lower <- out$log_mean - tcrit * se_log_mean
+  out$log_mean_CI_upper <- out$log_mean + tcrit * se_log_mean
+  
+  if (log_transform) {
+    out$mean_geometric <- exp(out$log_mean)
+    out$mean_geometric_CI_lower <- exp(out$log_mean_CI_lower)
+    out$mean_geometric_CI_upper <- exp(out$log_mean_CI_upper)
+  } else {
+    out$mean_geometric <- out$log_mean
+    out$mean_geometric_CI_lower <- out$log_mean_CI_lower
+    out$mean_geometric_CI_upper <- out$log_mean_CI_upper
+  }
+  
+  out <- out[, c("wellID", "is_reference", "term",
+                 "estimate", "SE", "df", "t_value", "p_value",
+                 "estimate_CI_lower", "estimate_CI_upper",
+                 "mean_geometric", "mean_geometric_CI_lower", "mean_geometric_CI_upper")]
+  tibble::as_tibble(out) %>% mutate(response = response, .before = 1)
+}
+
+
+wellID_coef_summary <- purrr::imap_dfr(well_diff_results, function(res, resp) {
+  if (is.null(res) || is.null(res$m.well)) return(NULL)
+  wellID_coef_table(res$m.well, response = resp, log_transform = TRUE)
+})
+## results:
+# for gross_total_areal_gO2_m2, VDOS appears to be driving the differences between wells, with higher mean total event size than other wells
+# for accrual_total_areal_gO2_m2, same result as for gross_total_areal_gO2_m2
+# for accrual rate, VDOS again stands out, but there is actually stronger evidence for SLOW (p = 0.04, CIs: 0.44, 4.4) as having strong evidence for higher accrual rates than SLOC (the reference) and it appears that the low mean accrual rate in SLOC is likely driving the model-level strong evidence for between-well differences. This is interesting since SLOC is the only well that sometimes had above ground surface water levels and definitely had the shallowest dtw overall. It suggests that accrual rates are promoted by subsurface interactions specifically. 
+
+write_csv(wellID_coef_summary, "results/well_mean_diffs_summary.csv")
 
 #### Per-well simple linear regressions ####
-
 
 dir.create("plots", showWarnings = FALSE)
 
@@ -342,7 +577,7 @@ for (i in seq_len(nrow(model_specs))) {
 
 per_well_summary <- bind_rows(per_well_list)
 
-write_csv(per_well_summary, "DTW_compiled/EReventmodels_perwell_summary.csv")
+write_csv(per_well_summary, "results/EReventmodels_perwell_summary.csv")
 
 #### Pub-ready model results ####
 
