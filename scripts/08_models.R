@@ -397,41 +397,9 @@ well_diff_summary <- purrr::imap_dfr(well_diff_results, function(res, resp) {
 # weak evidence (p = 0.08) for differences between wells in gross_total_areal_gO2_m2
 # weak evidence (p = 0.08) for differences between wells in accrual_total_areal_gO2_m2
 # strong evidence (p = 0.008) for differences between wells in accrual_rate_hourly_areal_gO2_m2
+write_csv(well_diff_summary, "results/well_mean_diffs_model_summary.csv")
 
 # looking at differences between wells within each model
-wellID_coef_table <- function(fit, response, log_transform = TRUE) {
-  
-  if (is.null(fit)) return(NULL)
-  
-  tt <- as.data.frame(summary(fit)$tTable)
-  tt$term <- rownames(tt)
-  names(tt) <- c("estimate", "SE", "df", "t_value", "p_value", "term")
-  
-  # ID reference (baseline) well
-  all_wells <- names(well_colors)
-  nonref_terms <- setdiff(tt$term, "(Intercept)")
-  nonref_wells <- gsub("^wellID", "", nonref_terms)
-  reference_well <- setdiff(all_wells, nonref_wells)
-  
-  intercept_est <- tt$estimate[tt$term == "(Intercept)"]
-  sigma2 <- fit$sigma^2
-  
-  out <- tt
-  out$wellID <- ifelse(out$term == "(Intercept)", reference_well, gsub("^wellID", "", out$term))
-  out$is_reference <- out$term == "(Intercept)"
-  out$log_mean <- ifelse(out$is_reference, out$estimate, intercept_est + out$estimate)
-  
-  if (log_transform) {
-    out$mean_geometric <- exp(out$log_mean)
-  } else {
-    out$mean_geometric <- out$log_mean
-  }
-  
-  out <- out[, c("wellID", "is_reference", "term", "estimate", "SE", "df", "t_value", "p_value",
-                 "log_mean", "mean_geometric")]
-  tibble::as_tibble(out) %>% mutate(response = response, .before = 1)
-}
-
 wellID_coef_table <- function(fit, response, log_transform = TRUE) {
   
   if (is.null(fit)) return(NULL)
@@ -459,7 +427,7 @@ wellID_coef_table <- function(fit, response, log_transform = TRUE) {
   }
   
   # ID reference (baseline) well
-  all_wells <- names(well_colors)
+  all_wells <- c("SLOC","SLOW","VDOS","VDOW")
   nonref_terms <- setdiff(tt$term, "(Intercept)")
   nonref_wells <- gsub("^wellID", "", nonref_terms)
   reference_well <- setdiff(all_wells, nonref_wells)
@@ -504,8 +472,6 @@ wellID_coef_table <- function(fit, response, log_transform = TRUE) {
                  "mean_geometric", "mean_geometric_CI_lower", "mean_geometric_CI_upper")]
   tibble::as_tibble(out) %>% mutate(response = response, .before = 1)
 }
-
-
 wellID_coef_summary <- purrr::imap_dfr(well_diff_results, function(res, resp) {
   if (is.null(res) || is.null(res$m.well)) return(NULL)
   wellID_coef_table(res$m.well, response = resp, log_transform = TRUE)
@@ -514,7 +480,6 @@ wellID_coef_summary <- purrr::imap_dfr(well_diff_results, function(res, resp) {
 # for gross_total_areal_gO2_m2, VDOS appears to be driving the differences between wells, with higher mean total event size than other wells
 # for accrual_total_areal_gO2_m2, same result as for gross_total_areal_gO2_m2
 # for accrual rate, VDOS again stands out, but there is actually stronger evidence for SLOW (p = 0.04, CIs: 0.44, 4.4) as having strong evidence for higher accrual rates than SLOC (the reference) and it appears that the low mean accrual rate in SLOC is likely driving the model-level strong evidence for between-well differences. This is interesting since SLOC is the only well that sometimes had above ground surface water levels and definitely had the shallowest dtw overall. It suggests that accrual rates are promoted by subsurface interactions specifically. 
-
 write_csv(wellID_coef_summary, "results/well_mean_diffs_summary.csv")
 
 #### Per-well simple linear regressions ####
