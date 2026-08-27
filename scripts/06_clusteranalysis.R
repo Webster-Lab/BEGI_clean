@@ -441,7 +441,6 @@ cluster_DTW_data_k3 <- read_csv("DTW_compiled/DTW_clusters_k3_smoothed_norm.csv"
 BEGI_events = readRDS("EXO_compiled/BEGI_events.rds")
 
 #Match event_time with Eventdate for each well
-#Turns out the events in the csv are in order for each well's Eventdate list :D
 cluster_DTW_data_k3$well_id <- rep(c("SLOC","SLOW","VDOW","VDOS"),
                                    times = c(length(BEGI_events[["Eventdate"]][["SLOC_dates"]]),
                                              length(BEGI_events[["Eventdate"]][["SLOW_dates"]]),
@@ -476,14 +475,7 @@ well_clusters<-ggplot(cluster_DTW_data_k3_long, aes(x=timestep,y=DTW_m, group=en
   theme(text = element_text(size = 20))+
   scale_color_manual(values=c("#440154FF","#31688EFF","#35B779FF","#FDE725FF"))
 
-well_clusters
-
-final_cluster <- well_clusters / tableGrob(cluster_by_well) +
-  plot_layout(heights = c(4,1))
-
-
 ggsave("plots/well_clusters.png", well_clusters, width = 12, height = 7, units = "in")
-ggsave("plots/final_cluster.png", final_cluster, width = 14, height = 9, units = "in")
 
 ##########################################
 #### 2. fDOM cluster analysis ####
@@ -875,9 +867,6 @@ ggsave("plots/meancurves_fdom.png", meancurvesp, width = 9, height = 8, units = 
 BEGI_events = readRDS("EXO_compiled/BEGI_events.rds")
 
 #Match event_time with Eventdate for each well
-#Turns out the events in the csv are in order for each well's Eventdate list :D
-#I NEED TO DOUBLE CHECK THAT THIS IS ACCURATE. IT SHOULD BE CONSIDERING THIS IS THE FDOM 
-# FOLLOWING EACH DO EVENT, SO IT SHOULD BE IN LINE
 cluster_DTW_data_k2$well_id <- rep(c("SLOC","SLOW","VDOW","VDOS"),
                                    times = c(length(BEGI_events[["Eventdate"]][["SLOC_dates"]]),
                                              length(BEGI_events[["Eventdate"]][["SLOW_dates"]]),
