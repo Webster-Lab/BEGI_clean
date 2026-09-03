@@ -121,7 +121,7 @@ eventsize_bp <- ggplot (data = ER_results,
                         mapping = aes(x = site, y = gross_total_areal_gO2_m2)) + 
   geom_boxplot(fill = c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF")) +
   theme_grey(base_size = 18) +
-  ylab(expression(atop("Total Event Size", paste("(g" ~ O[2] ~ m^-2 ~ "event"^-1 * ")")))) +
+  ylab(expression(atop("Total Event Size", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
@@ -131,7 +131,7 @@ accrual_bp <- ggplot (data = ER_results,
                         mapping = aes(x = site, y = accrual_total_areal_gO2_m2)) + 
   geom_boxplot(fill = c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF")) +
   theme_grey(base_size = 18) +
-  ylab(expression(atop("Total Accrual", paste("(g" ~ O[2] ~ m^-2 ~ "event"^-1 * ")")))) +
+  ylab(expression(atop("Total Accrual", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
@@ -141,7 +141,7 @@ ER_bp <- ggplot (data = ER_results,
                       mapping = aes(x = site, y = ER_total_areal_gO2_m2)) + 
   geom_boxplot(fill = c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF")) +
   theme_grey(base_size = 18) +
-  ylab(expression(atop("Ecosystem Respiration", paste("(g" ~ O[2] ~ m^-2 ~ "event"^-1 * ")")))) +
+  ylab(expression(atop("Ecosystem Respiration", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
   xlab("Well")
 
 # plotted together #
