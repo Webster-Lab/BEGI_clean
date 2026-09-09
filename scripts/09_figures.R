@@ -146,7 +146,7 @@ ER_bp <- ggplot (data = ER_results,
 
 # plotted together #
 finalevent_bp = eventsize_bp+ accrual_bp+ ER_bp+ plot_layout(ncol = 1, widths = c(1, 1, 1), heights=c(3, 3, 3))
-ggsave("plots/finalevent_bp.png", finalevent_bp, width=11,height=8, units="in")
+ggsave("plots/finalevent_bp.pdf", finalevent_bp, width=11,height=8, units="in")
 
 
 #### Clear environment ####

@@ -921,7 +921,7 @@ p_dtw_within_fit <- wrap_plots(dtw_fit_plots, ncol = 1) +
   plot_annotation(
     title = "Accrual, ER, and total event size vs. within-well groundwater variability (DTW SD, 2d pre-event)"
   )
-ggsave("plots/highlighted_DTW_sd_2d_within_fit.png", p_dtw_within_fit, width = 10, height = 10.5, dpi = 150)
+ggsave("plots/highlighted_DTW_sd_2d_within_fit.pdf", p_dtw_within_fit, width = 10, height = 10.5, dpi = 150)
 
 
 #### Model diagnostics figures
@@ -962,5 +962,5 @@ p_dtw_diag <- wrap_plots(dtw_diag_rows, ncol = 1) +
   plot_annotation(
     title = "Model diagnostics: response ~ DTW_sd_2d_within (nested random effects)"
   )
-ggsave("plots/highlighted_DTW_sd_2d_within_diagnostics.png", p_dtw_diag, width = 10, height = 9, dpi = 150)
+ggsave("plots/highlighted_DTW_sd_2d_within_diagnostics.pdf", p_dtw_diag, width = 10, height = 9, dpi = 150)
 
