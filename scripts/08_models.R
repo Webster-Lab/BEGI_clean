@@ -716,6 +716,15 @@ fit_highlighted <- function(data, response, predictor, label) {
     coef_tab$ci_upper <- NA_real_
   }
   
+  # Rescale within/between coefficients + CIs from "per 1 raw unit (1 m)" to
+  # "per 0.01 m of the observed predictor" so exp() gives a realistic change.
+  scale_factor <- c(pred_within = 0.01, pred_between = 0.01)
+  scale_vec <- ifelse(coef_tab$term %in% names(scale_factor), scale_factor[coef_tab$term], 1)
+  coef_tab$estimate <- coef_tab$estimate * scale_vec
+  coef_tab$se <- coef_tab$se * scale_vec
+  coef_tab$ci_lower <- coef_tab$ci_lower * scale_vec
+  coef_tab$ci_upper <- coef_tab$ci_upper * scale_vec
+  
   # LOO
   n <- nrow(d)
   full_within <- nlme::fixef(m.wb)[["pred_within"]]
