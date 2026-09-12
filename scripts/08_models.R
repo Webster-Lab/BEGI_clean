@@ -104,7 +104,6 @@ for (p in wb_predictors) {
 }
 
 #### Define functions for model fitting and diagnosis ####
-
 ## for correlations
 # random_form: ~1|wellID or ~1|siteID/wellID
 # log_transform: if TRUE, models log(response)
@@ -169,6 +168,11 @@ fit_and_diagnose <- function(data, response, predictor, random_form,
   ci <- tryCatch(nlme::intervals(m.wb, level = 0.95, which = "fixed"), error = function(e) NULL)
   if (!is.null(ci)) print(ci)
   print(summary(m.wb))
+  ci_fixed <- if (!is.null(ci)) as.data.frame(ci$fixed) else NULL
+  get_ci <- function(term, bound) {
+    if (is.null(ci_fixed) || !(term %in% rownames(ci_fixed))) return(NA_real_)
+    ci_fixed[term, bound]
+  }
   r2 <- tryCatch(MuMIn::r.squaredGLMM(m.wb), error = function(e) NULL)
   if (!is.null(r2)) { cat("Pseudo-R2 (marginal, conditional):\n"); print(r2) }
   
@@ -208,6 +212,8 @@ fit_and_diagnose <- function(data, response, predictor, random_form,
     r2 = r2,
     coef_within = full_within, coef_between = full_between,
     p_within = get_pval("pred_within"), p_between = get_pval("pred_between"),
+    ci_lower_within = get_ci("pred_within", "lower"), ci_upper_within = get_ci("pred_within", "upper"),
+    ci_lower_between = get_ci("pred_between", "lower"), ci_upper_between = get_ci("pred_between", "upper"),
     n_loo_flagged_within = length(flagged_within),
     n_loo_flagged_between = length(flagged_between)
   )
@@ -365,6 +371,8 @@ summary_rows <- purrr::imap_dfr(all_results, function(res, key) {
       response = parts[1], predictor = paste0(parts[2], "_within"), random_structure = parts[3],
       model_type = "within/between", n = res$n, delta_AICc = res$delta_aicc,
       coef = res$coef_within, p_value = res$p_within,
+      # first tibble (predictor = "..._within")
+      ci_lower = res$ci_lower_within, ci_upper = res$ci_upper_within,
       R2_marginal = tryCatch(res$r2[1, "R2m"], error = function(e) NA),
       R2_conditional = tryCatch(res$r2[1, "R2c"], error = function(e) NA),
       n_loo_flagged = res$n_loo_flagged_within
@@ -373,6 +381,8 @@ summary_rows <- purrr::imap_dfr(all_results, function(res, key) {
       response = parts[1], predictor = paste0(parts[2], "_between"), random_structure = parts[3],
       model_type = "within/between", n = res$n, delta_AICc = res$delta_aicc,
       coef = res$coef_between, p_value = res$p_between,
+      # second tibble (predictor = "..._between")
+      ci_lower = res$ci_lower_between, ci_upper = res$ci_upper_between,
       R2_marginal = tryCatch(res$r2[1, "R2m"], error = function(e) NA),
       R2_conditional = tryCatch(res$r2[1, "R2c"], error = function(e) NA),
       n_loo_flagged = res$n_loo_flagged_between
@@ -587,20 +597,28 @@ make_summary_table <- function(data, title, subtitle, out_file) {
     mutate(
       predictor_base = humanize(predictor_base, predictor_unit_labels),
       response = humanize(response, response_unit_labels),
-      term = humanize(term, term_unit_labels)
+      term = humanize(term, term_unit_labels),
+      coef_backtransformed = exp(coef),
+      ci_lower_backtransformed = exp(ci_lower),
+      ci_upper_backtransformed = exp(ci_upper)
     ) %>%
     select(predictor_base, response, term, n, coef, p_value, delta_AICc,
+           coef_backtransformed, ci_lower_backtransformed, ci_upper_backtransformed,
            R2_marginal, R2_conditional, n_loo_flagged)
   
   tab <- gt(prepped, groupname_col = "predictor_base")
   tab <- tab_header(tab, title = title, subtitle = subtitle)
-  tab <- fmt_number(tab, columns = c(coef, delta_AICc, R2_marginal, R2_conditional), n_sigfig = 2)
+  tab <- fmt_number(tab, columns = c(coef, delta_AICc, R2_marginal, R2_conditional,
+                                     coef_backtransformed, ci_lower_backtransformed, ci_upper_backtransformed),
+                    n_sigfig = 2)
   tab <- fmt_number(tab, columns = p_value, n_sigfig = 2)
   tab <- cols_label(
     tab,
     response = "Response", term = "Term", n = "n", coef = "Coefficient",
     p_value = "p", delta_AICc = "ΔAICc", R2_marginal = "R2 (marginal)",
-    R2_conditional = "R2 (conditional)", n_loo_flagged = "LOO flags"
+    R2_conditional = "R2 (conditional)", n_loo_flagged = "LOO flags",
+    coef_backtransformed = "Fold-change", ci_lower_backtransformed = "95% CI low (fold)",
+    ci_upper_backtransformed = "95% CI high (fold)"
   )
   
   
@@ -667,14 +685,21 @@ for (p in wb_predictors) {
 ### The highlighted models:
 highlighted_models <- tibble::tribble(
   ~group,                   ~response,                      ~predictor,     ~data_subset,
+  
+  "DTW_mean_2d_within",       "ER_rate_mag",                  "DTW_mean_2d",    "all",
+  "DTW_mean_2d_within",       "ER_total_mag",                 "DTW_mean_2d",    "no_rebound",
+  "DTW_mean_2d_within",       "accrual_total_areal_gO2_m2",   "DTW_mean_2d",    "all",
+  "DTW_mean_2d_within",       "gross_total_areal_gO2_m2",     "DTW_mean_2d",    "all",
+  
+  "DTW_sd_2d_within",       "ER_rate_mag",                  "DTW_sd_2d",    "all",
+  "DTW_sd_2d_within",       "ER_total_mag",                 "DTW_sd_2d",    "no_rebound",
   "DTW_sd_2d_within",       "accrual_total_areal_gO2_m2",   "DTW_sd_2d",    "all",
-  "DTW_sd_2d_within",       "ER_total_mag",                  "DTW_sd_2d",    "no_rebound",
-  "DTW_sd_2d_within",       "gross_total_areal_gO2_m2",      "DTW_sd_2d",    "all"
+  "DTW_sd_2d_within",       "gross_total_areal_gO2_m2",     "DTW_sd_2d",    "all",
 )
 
 nested_random <- ~1 | siteID/wellID
 
-### Fit function: nested random effects, log(response), with full stats + leave-one-out extracted
+### Fit function: nested random effects, back-transformed response, with full stats + leave-one-out extracted
 fit_highlighted <- function(data, response, predictor, label) {
   
   within_col <- paste0(predictor, "_within")
@@ -724,6 +749,11 @@ fit_highlighted <- function(data, response, predictor, label) {
   coef_tab$se <- coef_tab$se * scale_vec
   coef_tab$ci_lower <- coef_tab$ci_lower * scale_vec
   coef_tab$ci_upper <- coef_tab$ci_upper * scale_vec
+  
+  # back-transform slopes and CIs
+  coef_tab$estimate_backtransformed <- exp(coef_tab$estimate)
+  coef_tab$ci_lower_backtransformed <- exp(coef_tab$ci_lower)
+  coef_tab$ci_upper_backtransformed <- exp(coef_tab$ci_upper)
   
   # LOO
   n <- nrow(d)
@@ -795,6 +825,7 @@ prepped_highlighted <- highlighted_full_stats %>%
                              .default = term)
   ) %>%
   select(group, response, predictor, term, estimate, se, p_value, ci_lower, ci_upper,
+         estimate_backtransformed, ci_lower_backtransformed, ci_upper_backtransformed,
          n, n_wells, R2_marginal, R2_conditional, delta_AICc, n_loo_flagged)
 
 gt_highlighted <- gt(prepped_highlighted, groupname_col = "group")
@@ -804,7 +835,8 @@ gt_highlighted <- tab_header(
 )
 # n_sigfig, not fixed decimals -- see note in make_summary_table above.
 gt_highlighted <- fmt_number(
-  gt_highlighted, columns = c(estimate, se, ci_lower, ci_upper, R2_marginal, R2_conditional, delta_AICc),
+  gt_highlighted, columns = c(estimate, se, ci_lower, ci_upper, R2_marginal, R2_conditional, delta_AICc,
+                              estimate_backtransformed, ci_lower_backtransformed, ci_upper_backtransformed),
   n_sigfig = 2
 )
 gt_highlighted <- fmt_number(gt_highlighted, columns = p_value, n_sigfig = 2)
@@ -812,6 +844,8 @@ gt_highlighted <- cols_label(
   gt_highlighted,
   response = "Response", predictor = "Predictor", term = "Term", estimate = "Coefficient",
   se = "SE", p_value = "p", ci_lower = "95% CI low", ci_upper = "95% CI high",
+  estimate_backtransformed = "Fold-change / 0.01 m",
+  ci_lower_backtransformed = "95% CI low (fold)", ci_upper_backtransformed = "95% CI high (fold)",
   n = "n", n_wells = "Wells", R2_marginal = "R2 (marginal)", R2_conditional = "R2 (conditional)",
   delta_AICc = "ΔAICc", n_loo_flagged = "LOO flags"
 )
