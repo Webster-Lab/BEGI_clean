@@ -863,7 +863,7 @@ for (site in names(wells)) {
 # Pad with blank spacer rows so every well has the same number of vertical slots (max_n_rows)- this keeps row-block height and total page size identical across wells with different event counts.
 plot_well_wrapped <- function(site, event_list, service_df, max_n_rows,
                               events_per_row = EVENTS_PER_ROW,
-                              strip_size = 7, axis_size = 6) {
+                              strip_size = 12, axis_size = 10) {
   
   dat <- build_well_data(site, event_list, service_df)
   long_data <- dat$long_data
@@ -881,10 +881,10 @@ plot_well_wrapped <- function(site, event_list, service_df, max_n_rows,
       { if (!is.null(sv_r) && nrow(sv_r) > 0)
         geom_vline(data = sv_r, aes(xintercept = t_hours), color = "red",
                    linetype = "dashed", linewidth = 0.25) } +
-      geom_line(linewidth = 0.3, na.rm = TRUE) +
+      geom_line(linewidth = .6, na.rm = TRUE) +
       facet_grid(variable ~ event_label, scales = "free_y", switch = "y") +
       labs(x = NULL, y = NULL) +
-      theme_bw(base_size = 9) +
+      theme_bw(base_size = 15) +
       theme(
         strip.text.y.left = element_text(angle = 0, size = strip_size),
         strip.text.x      = element_text(size = strip_size),
@@ -906,7 +906,7 @@ plot_well_wrapped <- function(site, event_list, service_df, max_n_rows,
   
   wrap_plots(row_blocks, ncol = 1) +
     plot_layout(heights = rep(1, max_n_rows)) +
-    plot_annotation(title = site, theme = theme(plot.title = element_text(size = 16, face = "bold")))
+    plot_annotation(title = site, theme = theme(plot.title = element_text(size = 24, face = "bold")))
 }
 
 # height fixed at max_n_rows * height_per_row_block for every well
