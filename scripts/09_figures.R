@@ -57,7 +57,8 @@ EXOz_all$siteID <- substr(EXOz_all$wellID, 1, 3)
 Q = 
   ggplot(DTW_df, aes(datetimeMT, Q_Lsec)) +
   xlab("") +
-  ylab("Discharge \n(L/sec)") +
+  #ylab("Discharge \n(L/sec)") +
+  ylab(expression(atop("Discharge", paste("(L ", sec^-1, ")"))))+
   geom_line(linewidth=1)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -65,7 +66,11 @@ Q =
         axis.text.x = element_blank(),
         legend.title = element_blank(),
         axis.ticks.x=element_blank(),
-        text = element_text(size = 20))
+        text = element_text(size = 20))+
+  geom_text(data = data.frame(siteID = unique(EXOz_all$siteID)[1]),
+            aes(x = -Inf, y = Inf), label = "A",
+            hjust = -0.5, vjust = 1.5, size = 6, color = "black",
+            inherit.aes = FALSE)
 
 DTW = 
   ggplot(DTW_df, aes(datetimeMT, DTW_m, color=wellID)) +
@@ -83,12 +88,16 @@ DTW =
         legend.title = element_blank(),
         legend.position = "none",
         text = element_text(size = 20)) +
-  scale_color_viridis(discrete = TRUE, option = "D")
+  scale_color_viridis(discrete = TRUE, option = "D")+
+  geom_text(data = data.frame(siteID = sort(unique(EXOz_all$siteID))[1]),
+            aes(x = -Inf, y = Inf), label = "B",
+            hjust = -0.5, vjust = 1.5, size = 6, color = "black",
+            inherit.aes = FALSE)
 
 ODO_fig = 
   ggplot(EXOz_all, aes(datetimeMT, ODO.mg.L.mn_sm, color = wellID)) +
   xlab("") +
-  ylab("Dissolved Oxygen \n (mg/L)") +
+  ylab(expression(atop("Dissolved Oxygen", paste("(mg ", L^-1, ")"))))+
   geom_line(key_glyph = "timeseries",linewidth=1,alpha=0.75) +
   facet_grid(rows = vars(siteID)) +
   theme_bw() +
@@ -98,7 +107,11 @@ ODO_fig =
         legend.title = element_blank(),
         legend.position = "bottom",
         text = element_text(size = 20)) +
-  scale_color_viridis(discrete = TRUE, option = "D")
+  scale_color_viridis(discrete = TRUE, option = "D")+
+  geom_text(data = data.frame(siteID = sort(unique(EXOz_all$siteID))[1]),
+            aes(x = -Inf, y = Inf), label = "C",
+            hjust = -0.5, vjust = 1.5, size = 6, color = "black",
+            inherit.aes = FALSE)
 
 
 DO_ts = Q+ DTW+ ODO_fig+ plot_layout(ncol = 1, widths = c(1,.84, 1), heights=c(1.4,3.1,3.1))
@@ -124,7 +137,9 @@ eventsize_bp <- ggplot (data = ER_results,
   ylab(expression(atop("Total Event Size", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank()) +
+  annotate("text", x = -Inf, y = Inf, label = "A", hjust = -0.5, vjust = 1.5,
+         size = 6)
 
 # total accrual #
 accrual_bp <- ggplot (data = ER_results, 
@@ -134,7 +149,9 @@ accrual_bp <- ggplot (data = ER_results,
   ylab(expression(atop("Total Accrual", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+  annotate("text", x = -Inf, y = Inf, label = "B", hjust = -0.5, vjust = 1.5,
+           size = 6)
 
 # total ER #
 ER_bp <- ggplot (data = ER_results, 
@@ -142,11 +159,13 @@ ER_bp <- ggplot (data = ER_results,
   geom_boxplot(fill = c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF")) +
   theme_grey(base_size = 18) +
   ylab(expression(atop("Ecosystem Respiration", paste("(g" ~ O[2] ~ m^-2 ~")")))) +
-  xlab("Well")
+  xlab("Well")+
+  annotate("text", x = -Inf, y = Inf, label = "C", hjust = -0.5, vjust = 1.5,
+           size = 6)
 
 # plotted together #
 finalevent_bp = eventsize_bp+ accrual_bp+ ER_bp+ plot_layout(ncol = 1, widths = c(1, 1, 1), heights=c(3, 3, 3))
-ggsave("plots/finalevent_bp.pdf", finalevent_bp, width=11,height=8, units="in")
+ggsave("plots/finalevent_bp.pdf", finalevent_bp, width=6,height=11, units="in")
 
 
 #### Clear environment ####
